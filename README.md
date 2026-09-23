@@ -1,5 +1,7 @@
 # Bangarang
 
+[![tests](https://github.com/AdamMackey/bangarang/actions/workflows/tests.yml/badge.svg)](https://github.com/AdamMackey/bangarang/actions/workflows/tests.yml)
+
 A status line for Claude Code: everything worth watching in two rows, in a rainbow box.
 
 ![Bangarang in Terminal: BANGARANG and Claude's status with the context, refill and cache meters on top; model, effort, plan and cost with the session, weekly and Fable limits below; all in a rainbow box](docs/screenshot.png)
@@ -19,11 +21,11 @@ A status line for Claude Code: everything worth watching in two rows, in a rainb
 
 ## Requirements
 
-- macOS (it uses the BSD `stat` and `date` that ship with it; Linux isn't supported yet)
+- macOS or Linux. The tests run on macOS, Ubuntu 22.04 and Ubuntu 24.04 on every push.
 - Claude Code 2.1.278 or later, for the limit and cache numbers
-- `jq` (`brew install jq`)
+- `jq` (`brew install jq`, or `sudo apt install jq`)
 - A terminal with 24-bit colour on a dark background, about 125 columns wide. Made in Terminal.app
-  with SF Mono.
+  with SF Mono; most Linux terminals do 24-bit colour too.
 - python3, only for running the tests
 
 ## Install
@@ -76,7 +78,8 @@ the rows exactly. A short word in capitals looks best. Options go together, as i
 - status.claude.com's public status, fetched with curl in the background at most every 2 minutes; a
   verdict counts for 20 minutes.
 - With `--usage`, Claude Code's `/usage` every 10 minutes.
-- Its caches live in `~/Library/Caches/claude-statusline`.
+- Its caches live in `~/Library/Caches/claude-statusline` on macOS and `~/.cache/claude-statusline`
+  (or `$XDG_CACHE_HOME`) on Linux.
 
 ## Tips
 
@@ -88,6 +91,7 @@ the rows exactly. A short word in capitals looks best. Options go together, as i
 
 ```sh
 tests/run.sh          # the test suite (a throwaway HOME; your real cache is never touched)
+                      # GitHub Actions runs it on macOS and Ubuntu for every push
 tools/preview.sh      # renders tools/sample-payload.json to preview.png and prints it
 ```
 
