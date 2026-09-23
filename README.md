@@ -100,6 +100,11 @@ tools/preview.sh      # renders tools/sample-payload.json to preview.png and pri
 - SF Mono has the box-drawing glyphs, and its vertical line runs past the line height, so the sides
   join up.
 
+## Support
+
+Bangarang is free. If it saves you from a surprise limit or two, you can
+[buy me a coffee](https://buymeacoffee.com/adammackey).
+
 ## License
 
 MIT. Not affiliated with Anthropic.
