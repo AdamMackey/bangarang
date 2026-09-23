@@ -1,0 +1,71 @@
+{
+  "effort": {
+    "level": "max"
+  },
+  "model": {
+    "id": "claude-opus-5-5",
+    "display_name": "Opus 5.5"
+  },
+  "version": "2.1.280",
+  "output_style": {
+    "name": "default"
+  },
+  "cost": {
+    "total_cost_usd": 112.33,
+    "total_duration_ms": 108498048,
+    "total_api_duration_ms": 7061848,
+    "total_lines_added": 776,
+    "total_lines_removed": 286
+  },
+  "context_window": {
+    "total_input_tokens": 947540,
+    "total_output_tokens": 16,
+    "context_window_size": 1000000,
+    "current_usage": {
+      "input_tokens": 2,
+      "output_tokens": 16,
+      "cache_creation_input_tokens": 4862,
+      "cache_read_input_tokens": 942676
+    },
+    "used_percentage": 47,
+    "remaining_percentage": 5
+  },
+  "exceeds_200k_tokens": true,
+  "prompt_cache": {
+    "warm": true,
+    "caching_observed": true,
+    "ttl": "1h",
+    "expires_at": 1790158715,
+    "requests": 288,
+    "misses": 4,
+    "expected_rebuilds": 0,
+    "hit_ratio": 0.9814414494893865,
+    "cache_write_tokens": 3062735,
+    "miss_recache_tokens": 2104546,
+    "last_miss_at": 1790137994,
+    "last_miss_cause": {
+      "causes": [
+        "model_changed"
+      ]
+    },
+    "miss_causes": {
+      "ttl_expired_1h": 2,
+      "model_changed": 2
+    },
+    "recache_tokens_if_cold": 942678
+  },
+  "fast_mode": false,
+  "thinking": {
+    "enabled": true
+  },
+  "rate_limits": {
+    "five_hour": {
+      "used_percentage": 25,
+      "resets_at": 1790164215
+    },
+    "seven_day": {
+      "used_percentage": 14,
+      "resets_at": 1790708825
+    }
+  }
+}

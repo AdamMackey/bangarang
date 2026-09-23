@@ -1,0 +1,4 @@
+.installed
+/preview.png
+tools/venv/
+.DS_Store
