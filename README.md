@@ -1,65 +1,105 @@
 # Bangarang
 
-A Claude Code status line: two rows of everything worth watching, in a rainbow box.
+A status line for Claude Code: everything worth watching in two rows, in a rainbow box.
 
 ![Bangarang in Terminal: BANGARANG and Claude's status with the context, refill and cache meters on top; model, effort, plan and cost with the session, weekly and Fable limits below; all in a rainbow box](docs/screenshot.png)
 
-- **Row 1**: BANGARANG (always there; it grows or shrinks to fill the room row 2 leaves, so the rows
-  line up), the status.claude.com verdict (`✓ Claude operational`, or `✕ Claude Outage` /
-  `✕ Claude Maintenance` coloured by severity), then the context window, the time until the 5-hour
-  limit refills, and the prompt cache's time left.
-- **Row 2**: model, effort, fast mode, plan and session cost, then the 5-hour and weekly limits and
-  per-model limits (Fable). Limit numbers turn amber from 70% and red from 90%; the lighter cells
-  are where the current pace lands by the reset.
-- The box is a soft OKLCH rainbow, red to violet.
+## What it shows
 
-## Use
+- **Top row**: BANGARANG, then Claude's service status from status.claude.com
+  (`✓ Claude operational`, or `✕ Claude Outage` / `✕ Claude Maintenance` in amber, orange or red
+  by severity), then bars for the context window, the time until your 5-hour limit refills, and
+  how long the prompt cache stays warm.
+- **Bottom row**: model, effort, fast mode, your plan and what the session has cost so far, then
+  bars for the 5-hour and weekly limits, plus per-model limits such as Fable's if you turn them on.
+- Limit numbers turn amber from 70% and red from 90%. The lighter cells on a limit bar show where
+  your current pace lands by the time it resets.
+- The rows line up as a table whatever the model, effort or status: BANGARANG grows or shrinks to
+  take up the slack.
+
+## Requirements
+
+- macOS (it uses the BSD `stat` and `date` that ship with it; Linux isn't supported yet)
+- Claude Code 2.1.278 or later, for the limit and cache numbers
+- `jq` (`brew install jq`)
+- A terminal with 24-bit colour on a dark background, about 125 columns wide. Made in Terminal.app
+  with SF Mono.
+- python3, only for running the tests
+
+## Install
 
 ```sh
-./install.sh          # runs the tests, then copies statusline.sh to ~/.claude/statusline.sh
-tests/run.sh          # the test suite (throwaway HOME; the real cache is never touched)
+git clone https://github.com/AdamMackey/bangarang.git ~/Bangarang
+cd ~/Bangarang
+./install.sh
+```
+
+Then add this to `~/.claude/settings.json`:
+
+```json
+"statusLine": {
+  "type": "command",
+  "command": "~/.claude/statusline.sh",
+  "refreshInterval": 60
+}
+```
+
+It shows up at Claude Code's next refresh. `install.sh` runs the tests first and keeps any status
+line you already had as `~/.claude/statusline.sh.bak`. Run it again after pulling updates.
+
+### Per-model limits (optional)
+
+Claude Code doesn't give status lines the per-model weekly limits (such as Fable's). Add `--usage`
+to the command (`"command": "~/.claude/statusline.sh --usage"`), or set `BANGARANG_USAGE=1`, and
+Bangarang runs Claude Code's own `/usage` headless every 10 minutes in the background to read them.
+That makes no model call and costs nothing, but it does start a `claude` process, so it's off unless
+you turn it on.
+
+## What it reads and fetches
+
+- The session JSON Claude Code pipes to status lines: model, effort, fast mode, context window,
+  cost, rate limits and the prompt cache.
+- Your plan tier (`oauthAccount.organizationRateLimitTier`) from `~/.claude.json`, and nothing else
+  from that file.
+- status.claude.com's public status, fetched with curl in the background at most every 2 minutes; a
+  verdict counts for 20 minutes.
+- With `--usage`, Claude Code's `/usage` every 10 minutes.
+- Its caches live in `~/Library/Caches/claude-statusline`.
+
+## Tips
+
+- `/color red` (or blue, green, yellow, purple, orange, pink, cyan) colours the prompt bar and
+  session name just above the status line. That's Claude Code's, and it's per session.
+- The line under the status line (`⏵⏵ auto mode on …`) belongs to Claude Code and can't be changed.
+
+## Development
+
+```sh
+tests/run.sh          # the test suite (a throwaway HOME; your real cache is never touched)
 tools/preview.sh      # renders tools/sample-payload.json to preview.png and prints it
 ```
 
-`~/.claude/settings.json` points at the installed copy:
-`"statusLine": {"type": "command", "command": "~/.claude/statusline.sh", "refreshInterval": 60}`.
-`install.sh` refuses to overwrite a live copy something else has changed since the last install
-(`--force` to do it anyway); the previous live copy is kept as `statusline.sh.bak`.
+- `tools/ansi2png.py` draws ANSI output to a PNG (SF Mono, hearts from Menlo) to check colours.
+- `tools/tui-harness.py` runs a throwaway `claude --bare` in a pseudo-terminal and prints the screen
+  it draws, through pyte (`python3 -m venv tools/venv && tools/venv/bin/pip install pyte`). It sets
+  `CLAUDE_CODE_NO_FLICKER=1`, which forces the full-screen renderer and skips its boot canary:
+  otherwise killing a full-screen launch within 10 seconds of its first frame counts a strike in
+  `~/.claude.json`, and two strikes turn full-screen off for that version. `CLAUDE_CODE_SANDBOXED=1`
+  skips the trust prompt without saving trust.
+- `tools/*.swift` check font coverage and windows (`swift tools/fontcheck.swift`).
 
-## Where the numbers come from
-
-- The JSON Claude Code pipes in: model, effort, fast mode, context window, cost, `rate_limits`
-  (5-hour and weekly, with reset times), `prompt_cache` (warm, TTL, expiry). Needs Claude Code
-  2.1.278 or later for the limits and cache.
-- The plan (`Max 20x`) from `oauthAccount.organizationRateLimitTier` in `~/.claude.json`, and nothing
-  else from that file; cached, re-read only when the file changes.
-- Claude's status from status.claude.com, checked in the background every 20 minutes and reduced the
-  way the Pulseous extension does it.
-- Per-model weekly limits (Fable) from a headless `claude -p "/usage"` every 10 minutes, in the
-  background. It makes no model call and costs nothing.
-- Caches live in `~/Library/Caches/claude-statusline`. macOS only as it stands (BSD `stat` and `date`).
-
-## Things learned the hard way
+### Things learned the hard way
 
 - Claude Code draws uncoloured status text as faint grey, so every piece has an explicit 24-bit
   colour. It repeats every colour code of the lines above at the start of each line, so long rows
   of codes (the box rules) end with a single reset.
 - Claude Code only rewrites cells that changed, and Terminal.app can leave a row blank on screen
-  after the window has been hidden while its text buffer still holds it. A box that never changes
-  would stay blank, so its colours step one unit of blue on odd minutes (invisible) and every refresh
-  repaints it.
-- The line under the status line (`⏵⏵ auto mode on …`) belongs to Claude Code and cannot be written
-  to. The prompt bar colour and session name above it come from `/color` (per session).
+  after its window has been hidden, while its text buffer still holds it. A box that never changed
+  would stay blank, so its colours step one unit of blue on odd minutes (invisible), and every
+  refresh repaints it.
 - SF Mono has the box-drawing glyphs, and its vertical line runs past the line height, so the sides
-  join up. It has no hearts: Terminal draws `♥` from Menlo, one cell wide.
+  join up.
 
-## Tools
+## License
 
-- `tools/ansi2png.py`: draws ANSI output to a PNG (SF Mono, hearts from Menlo) to look at colours.
-- `tools/tui-harness.py`: runs a throwaway `claude --bare` in a pseudo-terminal and prints the screen
-  it draws, through pyte (`python3 -m venv tools/venv && tools/venv/bin/pip install pyte`). It sets
-  `CLAUDE_CODE_NO_FLICKER=1`, which forces the full-screen renderer and skips its boot canary: killing
-  a full-screen launch within 10 seconds of its first frame otherwise counts a strike in
-  `~/.claude.json`, and two strikes turn full-screen off for that version. `CLAUDE_CODE_SANDBOXED=1`
-  skips the trust prompt without saving trust.
-- `tools/*.swift`: font coverage and window checks (`swift tools/fontcheck.swift`).
+MIT. Not affiliated with Anthropic.

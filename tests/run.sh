@@ -91,7 +91,8 @@ payload() {
 mkdir -p "$T/datebin"
 printf '#!/bin/bash\nif [ "$1" = "+%%s" ] && [ -n "$FAKE_NOW" ]; then echo "$FAKE_NOW"; else exec /bin/date "$@"; fi\n' > "$T/datebin/date"
 chmod +x "$T/datebin/date"
-runfull() { HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" bash "$new"; }
+# (--usage: the per-model limits are opt-in, and most checks want them; see "usage:" below)
+runfull() { HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" bash "$new" --usage; }
 # The rows sit in a rainbow box: a rule above and below, a side line a space off each end of every
 # row. Most checks look inside the box (row 1 is line 1); the box has its own checks.
 # (the box colours step one unit of blue on odd minutes, so match any colour on the sides)
@@ -196,6 +197,15 @@ seedu corrupt
 check "corrupt report: quiet"             "${OK}$LIM" "$(payload 4 230 12 7000 | row2)"
 seedu none; touch "$dc/usage-failed"
 check "no report ever, failed: quiet"     "${OK}$LIM" "$(payload 4 230 12 7000 | row2)"
+seedu none
+# the per-model limits are opt-in: a headless claude every ten minutes is for the user to choose
+bare() { HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" bash "$new"; }
+seedu fresh
+check "usage: off by default, no Fable meter"      "0" "$(payload 4 230 12 7000 | bare | grep -c Fable)"
+check "usage: --usage turns it on"                 "1" "$(payload 4 230 12 7000 | run | grep -c Fable)"
+check "usage: so does BANGARANG_USAGE=1"           "1" "$(payload 4 230 12 7000 | HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" BANGARANG_USAGE=1 bash "$new" | grep -c Fable)"
+rm -f "$dc"/usage*
+check "usage: off, no background claude is started" "untouched" "$(payload 4 230 12 7000 | bare >/dev/null; [ -e "$dc/usage-checked" ] && echo touched || echo untouched)"
 seedu none
 
 # colours: meter words in the "!" blue, amber from 70, red from 90; model and effort Fable purple
@@ -339,7 +349,7 @@ ok = (all(len(r) == w for r in rows) and all(r.startswith("│ ") and r.endswith
       and any(not r[:-2].endswith(" ") for r in inner))
 print("yes" if ok else "no: %r" % [len(r) for r in rows])'; done | tr '\n' ' ' | sed 's/ $//')"
 check "box: the top rule starts red and ends violet" "[38;2;244;146;$((138 + nudge))m [38;2;211;152;$((224 + nudge))m" "$(full | top | codes | sed -n '1p;$p' | tr '\n' ' ' | sed 's/ $//')"
-nextmin() { HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$((now + 60))" bash "$new"; }
+nextmin() { HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$((now + 60))" bash "$new" --usage; }
 check "box: the colours step each minute, so Claude Code repaints the box" "differ" "$([ "$(full | top | codes)" != "$(full | nextmin | sed -n 1p | codes)" ] && echo differ || echo same)"
 check "box: by one unit of blue, nothing you can see" "1" "$(a=$(full | top | codes | head -1 | tr -d '[m' | cut -d';' -f5); b=$(full | nextmin | sed -n 1p | codes | head -1 | tr -d '[m' | cut -d';' -f5); d=$((a - b)); echo ${d#-})"
 check "box: a rainbow along the top"             "yes" "$(full | top | codes | sort -u | awk 'END {print (NR > 40) ? "yes" : "no: " NR}')"

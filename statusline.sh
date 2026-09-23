@@ -1,20 +1,18 @@
 #!/bin/bash
-# Claude Code status line, in two rows:
-#   1. This session: the live model (and its context size), the effort level,
-#      your plan (Max 20x and so on) and what the session has cost, then bars
-#      for how full the context window is, how long the prompt cache stays
-#      warm, and how long until the 5-hour limit refills.
-#   2. Your plan and Claude's service: status.claude.com's verdict the way
-#      Pulseous shows it, always on (✓ all operational, ✕ and the problem when
-#      not, ? when there is no fresh answer), a phrase while all is clear, then
-#      bars for the 5-hour and weekly limits, each with a pace forecast, and
-#      the per-model weekly limits (Fable) from a headless /usage.
+# Bangarang, a Claude Code status line: two rows in a rainbow box.
+#   1. BANGARANG (always there, sized to fill the room row 2 leaves) and Claude's
+#      service from status.claude.com, the way Pulseous shows it (✓ Claude
+#      operational, ✕ Claude Outage or Maintenance in the colour of how bad it
+#      is, ? when there is no fresh answer); then bars for the context window,
+#      the time until the 5-hour limit refills, and the prompt cache.
+#   2. The live model (and its context size), effort, fast mode, your plan
+#      (Max 20x and so on) and what the session has cost; then bars for the
+#      5-hour and weekly limits, each with a pace forecast, and with --usage the
+#      per-model weekly limits (Fable) from a headless /usage.
 # Claude Code pipes session JSON to stdin after each turn, whenever the model,
 # effort or fast mode changes, and every "refreshInterval" seconds. Wired up by
-# "statusLine" in ~/.claude/settings.json. Each row is cut off at the terminal's
-# edge, which is why the status leads row 2. The two rows are laid out as a
-# table (see layout): their dots and bars line up, and they end on the same
-# column.
+# "statusLine" in ~/.claude/settings.json. The rows are laid out as a table
+# (see layout): their dots and bars line up, and they end on the same column.
 # Field names verified against the 2.1.278 and 2.1.280 builds: model.display_name,
 # model.id, effort.level (only sent for models that take an effort setting),
 # fast_mode, context_window.used_percentage (0-100, null until the first reply)
@@ -103,6 +101,13 @@ fi
 
 now=$(date +%s)
 
+# The per-model weekly limits (Fable and so on) cost a headless claude run every
+# ten minutes, so they are off unless asked for: --usage on the status line
+# command, or BANGARANG_USAGE=1 in its environment.
+usage_on=0
+for a in "$@"; do [ "$a" = "--usage" ] && usage_on=1; done
+[ "${BANGARANG_USAGE:-}" = 1 ] && usage_on=1
+
 # Look at status.claude.com at most every two minutes, in the background, so the
 # line never waits on the network. setsid gives the check its own session, so it
 # finishes even if Claude Code tidies up this script's process group.
@@ -113,7 +118,7 @@ if [ ! -e "$cache/status-checked" ] || [ $((now - $(stat -f %m "$cache/status-ch
 fi
 
 # The per-model limits move slowly: refresh them every ten minutes, the same way.
-if [ ! -e "$cache/usage-checked" ] || [ $((now - $(stat -f %m "$cache/usage-checked"))) -ge 600 ]; then
+if [ "$usage_on" = 1 ] && { [ ! -e "$cache/usage-checked" ] || [ $((now - $(stat -f %m "$cache/usage-checked"))) -ge 600 ]; }; then
   mkdir -p "$cache" && touch "$cache/usage-checked" && rm -f "$cache/usage-failed"
   perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' /bin/bash "$0" --fetch-usage </dev/null >/dev/null 2>&1 &
 fi
@@ -137,8 +142,8 @@ fi
 
 exec jq -r --argjson now "$now" \
   --arg plan "$(cat "$cache/plan" 2>/dev/null)" \
-  --arg usage "$(cat "$cache/usage.json" 2>/dev/null)" \
-  --arg usage_failed "$([ -e "$cache/usage-failed" ] && echo 1)" \
+  --arg usage "$([ "$usage_on" = 1 ] && cat "$cache/usage.json" 2>/dev/null)" \
+  --arg usage_failed "$([ "$usage_on" = 1 ] && [ -e "$cache/usage-failed" ] && echo 1)" \
   --argjson checked "$(stat -f %m "$cache/status-checked" 2>/dev/null || echo 0)" \
   --arg status "$(cat "$cache/status.json" 2>/dev/null)" \
   --arg failed "$([ -e "$cache/status-failed" ] && echo 1)" '
