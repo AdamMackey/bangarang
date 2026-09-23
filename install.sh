@@ -5,7 +5,9 @@
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
 live=$HOME/.claude/statusline.sh
-stamp=$here/.installed   # checksum of the copy last installed from here
+# checksum of the copy last installed from here, one stamp per target, so installing into
+# another HOME (a test run, say) never trips the guard for the real one
+stamp=$here/.installed-$(printf %s "$live" | cksum | cut -d' ' -f1)
 sum() { if command -v shasum >/dev/null; then shasum "$1"; else sha1sum "$1"; fi | cut -d' ' -f1; }
 
 command -v jq >/dev/null || { echo "Bangarang needs jq (brew install jq, or apt install jq)"; exit 1; }
