@@ -1,10 +1,16 @@
 #!/bin/bash
 # Tests for the new status line. Every run uses a throwaway HOME, so the real
-# cache in ~/Library/Caches/claude-statusline is never touched.
+# cache (~/Library/Caches or ~/.cache, claude-statusline) is never touched.
+# Runs on macOS and Linux.
 here=$(cd "$(dirname "$0")" && pwd)
 new=$(cd "$here/.." && pwd)/statusline.sh
 fx=$here/fixtures
 T=$(mktemp -d "${TMPDIR:-/tmp}/bangarang-tests.XXXX")
+unset XDG_CACHE_HOME
+# where the script keeps its cache under a given HOME, as it decides it
+cachedir() { if [ "$(uname)" = Darwin ]; then echo "$1/Library/Caches/claude-statusline"; else echo "$1/.cache/claude-statusline"; fi; }
+# an epoch time in a date format: BSD date takes -r, GNU date -d @
+epochfmt() { date -r "$1" "+$2" 2>/dev/null || date -d "@$1" "+$2"; }
 trap 'rm -rf "$T"' EXIT
 now=$(date +%s)
 pass=0; fail=0
@@ -27,7 +33,7 @@ cat > "$T/bin/claude" <<'EOF2'
 cat "$FAKE_USAGE"
 EOF2
 chmod +x "$T/bin/claude"
-fh="$T/home-fetch"; fc="$fh/Library/Caches/claude-statusline"
+fh="$T/home-fetch"; fc=$(cachedir "$fh")
 fetch() { HOME="$fh" PATH="$T/bin:$PATH" FAKE_SUMMARY="$fx/$1" FAKE_CURL_FAIL="$2" bash "$new" --fetch-status; }
 verdict() { jq -c '{tone, text}' "$fc/status.json"; }
 
@@ -65,7 +71,7 @@ check "usage: success clears the failure mark" "no" "$([ -e "$fc/usage-failed" ]
 check "usage: no temp files left"    "none" "$(ls "$fc" | grep -q 'usage\.json\.' && echo leftovers || echo none)"
 
 # ---- the status line itself ----
-dh="$T/home-display"; dc="$dh/Library/Caches/claude-statusline"; mkdir -p "$dc"
+dh="$T/home-display"; dc=$(cachedir "$dh"); mkdir -p "$dc"
 # status: fresh ok | fresh <tone>:<text> | stale | stale-failed | corrupt | none
 seed() {
   rm -f "$dc"/status*; touch "$dc/status-checked" "$dc/usage-checked"   # fresh stamps: no background checks during tests
@@ -112,11 +118,11 @@ row2bars() { run | plain | statuslimits; }
 # The head of row 2: model, effort, fast mode, plan and cost.
 head2() { run | plain | sed -n 2p | perl -pe 's/ · (?:Session|Weekly|Fable)[ ?].*$//'; }
 acct() { printf '{"numStartups":3,"oauthAccount":{"emailAddress":"x@example.com","organizationType":"%s","organizationRateLimitTier":%s}}' "$1" "$2" > "$dh/.claude.json"; }
-aged() { touch -t "$(date -r $((now - 60)) +%Y%m%d%H%M.%S)" "$dc/plan"; }   # the cached answer is a minute old
+aged() { touch -t "$(epochfmt $((now - 60)) %Y%m%d%H%M.%S)" "$dc/plan"; }   # the cached answer is a minute old
 
 OK='✓ Claude operational · '
 # A time the way the script words it from a day out: weekday (plus date from six days), hour, minutes unless :00, am/pm.
-fmt() { date -r "$1" "+$2 %l:%M%p" | tr -s ' ' | sed 's/:00\([AP]M\)$/\1/; s/AM$/am/; s/PM$/pm/'; }
+fmt() { epochfmt "$1" "$2 %l:%M%p" | tr -s ' ' | sed 's/:00\([AP]M\)$/\1/; s/AM$/am/; s/PM$/pm/'; }
 
 seed ok
 # pace: session windows are 300 minutes, weeks 10080; landing = used x window / elapsed
@@ -141,7 +147,7 @@ LIM='Session 4% · Weekly 12%'
 seed "warn:Claude Code degraded"
 check "an outage is just Claude Outage" "✕ Claude Outage · $LIM"           "$(payload 4 230 12 7000 | row2)"
 check "outage alone when no limits"  "✕ Claude Outage"                  "$(payload - 0 - 0 | row2)"
-settle() { touch -t "$(date -r $((now - 30)) +%Y%m%d%H%M.%S)" "$dc/status-checked"; }   # the last check started 30s ago
+settle() { touch -t "$(epochfmt $((now - 30)) %Y%m%d%H%M.%S)" "$dc/status-checked"; }   # the last check started 30s ago
 seed stale-failed
 check "stale and failing: unknown"   "? Claude status unknown · $LIM"          "$(payload 4 230 12 7000 | row2)"
 seed stale
@@ -401,7 +407,7 @@ check "the email is never read out"  "0" "$(cat "$dc"/plan 2>/dev/null | grep -c
 start=$(perl -MTime::HiRes=time -e 'printf "%.3f", time')
 for i in $(seq 20); do payload 4 230 83 950 | HOME="$dh" bash "$new" >/dev/null; done
 end=$(perl -MTime::HiRes=time -e 'printf "%.3f", time')
-echo "20 runs (payload build included): $(echo "$end - $start" | bc)s"
+echo "20 runs (payload build included): $(awk -v a="$start" -v b="$end" 'BEGIN { printf "%.3f", b - a }')s"
 
 echo "passed $pass, failed $fail"
 [ "$fail" -eq 0 ]

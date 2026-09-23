@@ -20,7 +20,19 @@
 # API prices), and rate_limits.five_hour / .seven_day as {used_percentage in
 # 0.1 steps, resets_at in epoch seconds}; a window drops out once it resets.
 
-cache="$HOME/Library/Caches/claude-statusline"
+# Runs on macOS and Linux. The caches live in ~/Library/Caches on macOS and in
+# $XDG_CACHE_HOME (~/.cache) elsewhere.
+if [ "$(uname)" = Darwin ]; then
+  cache="$HOME/Library/Caches/claude-statusline"
+else
+  cache="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
+fi
+# A file's modification time in epoch seconds: GNU stat takes -c, BSD stat -f.
+if stat -c %Y / >/dev/null 2>&1; then mtime() { stat -c %Y "$1"; }; else mtime() { stat -f %m "$1"; }; fi
+# Run a command in its own session (setsid on Linux, perl where there is none),
+# and with a 60-second limit (timeout on Linux, perl on macOS).
+detach() { if command -v setsid >/dev/null; then setsid "$@"; else perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' "$@"; fi; }
+limit60() { if command -v timeout >/dev/null; then timeout 60 "$@"; else perl -e 'alarm 60; exec @ARGV' "$@"; fi; }
 
 # The background half: fetch status.claude.com and boil it down to one small
 # verdict, {at, tone, text}, drawn the way Pulseous draws it. A failed fetch
@@ -83,7 +95,7 @@ if [ "$1" = "--fetch-usage" ]; then
   mkdir -p "$cache"
   tmp="$cache/usage.json.$$"
   claude_bin=$(command -v claude || echo "$HOME/.local/bin/claude")
-  if cd "$HOME" && perl -e 'alarm 60; exec @ARGV' "$claude_bin" -p "/usage" --output-format json --no-session-persistence </dev/null 2>/dev/null |
+  if cd "$HOME" && limit60 "$claude_bin" -p "/usage" --output-format json --no-session-persistence </dev/null 2>/dev/null |
      jq -c --argjson at "$(date +%s)" '
        (.result // "") as $text
        | if ($text | test("Current week")) then
@@ -124,15 +136,15 @@ done
 # line never waits on the network. setsid gives the check its own session, so it
 # finishes even if Claude Code tidies up this script's process group.
 # status-failed then only ever describes the latest check.
-if [ ! -e "$cache/status-checked" ] || [ $((now - $(stat -f %m "$cache/status-checked"))) -ge 120 ]; then
+if [ ! -e "$cache/status-checked" ] || [ $((now - $(mtime "$cache/status-checked"))) -ge 120 ]; then
   mkdir -p "$cache" && touch "$cache/status-checked" && rm -f "$cache/status-failed"
-  perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' /bin/bash "$0" --fetch-status </dev/null >/dev/null 2>&1 &
+  detach /bin/bash "$0" --fetch-status </dev/null >/dev/null 2>&1 &
 fi
 
 # The per-model limits move slowly: refresh them every ten minutes, the same way.
-if [ "$usage_on" = 1 ] && { [ ! -e "$cache/usage-checked" ] || [ $((now - $(stat -f %m "$cache/usage-checked"))) -ge 600 ]; }; then
+if [ "$usage_on" = 1 ] && { [ ! -e "$cache/usage-checked" ] || [ $((now - $(mtime "$cache/usage-checked"))) -ge 600 ]; }; then
   mkdir -p "$cache" && touch "$cache/usage-checked" && rm -f "$cache/usage-failed"
-  perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV' /bin/bash "$0" --fetch-usage </dev/null >/dev/null 2>&1 &
+  detach /bin/bash "$0" --fetch-usage </dev/null >/dev/null 2>&1 &
 fi
 
 # The plan is not in the status line JSON, but Claude Code keeps the account's
@@ -156,7 +168,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   --arg plan "$(cat "$cache/plan" 2>/dev/null)" \
   --arg usage "$([ "$usage_on" = 1 ] && cat "$cache/usage.json" 2>/dev/null)" \
   --arg usage_failed "$([ "$usage_on" = 1 ] && [ -e "$cache/usage-failed" ] && echo 1)" \
-  --argjson checked "$(stat -f %m "$cache/status-checked" 2>/dev/null || echo 0)" \
+  --argjson checked "$(mtime "$cache/status-checked" 2>/dev/null || echo 0)" \
   --arg status "$(cat "$cache/status.json" 2>/dev/null)" \
   --arg failed "$([ -e "$cache/status-failed" ] && echo 1)" '
   # The model name, "(1M)" and the effort are Fable purple (256-colour 134)
@@ -364,7 +376,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   # chevrons or four, whichever makes the hearts fit.
   def phrase($w):
     ($word | length) as $n
-    | ($word | split("") | join(" ")) as $spaced
+    | ($word | explode | map([.] | implode) | join(" ")) as $spaced
     | if $w < $n then null
     else (if $w >= ($spaced | length) then $spaced else $word end) as $core
       | ($w - ($core | length)) as $e
@@ -442,7 +454,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
     | ([$rows[] | .[0] | select(. != null) | cell_width(0)] | max // 0) as $head
     | if any($rows[] | .[0] | select(. != null and .flex != true); $head - (.tail | visible) > 24) then
         [$rows[] | [.[] | if is_meter then .label + " " + .bar + " " + .tail
-                          elif .flex == true then ("» " + ($word | split("") | join(" ")) + " «" | rainbow) + (if .tail == "" then "" else dot + .tail end)
+                          elif .flex == true then ("» " + ($word | explode | map([.] | implode) | join(" ")) + " «" | rainbow) + (if .tail == "" then "" else dot + .tail end)
                           else .tail end] | join(dot)]
       else
         [$rows[] | . as $row | [range(0; length) as $i | $row[$i] | render_cell($dims[$i])] | join(dot) | sub(" +$"; "")]

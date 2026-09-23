@@ -8,7 +8,7 @@ payload=${1:-$here/tools/sample-payload.json}
 out=${2:-$here/preview.png}
 h=$(mktemp -d "${TMPDIR:-/tmp}/bangarang-preview.XXXX")
 trap 'rm -rf "$h"' EXIT
-c=$h/Library/Caches/claude-statusline
+if [ "$(uname)" = Darwin ]; then c=$h/Library/Caches/claude-statusline; else c=$h/.cache/claude-statusline; fi
 mkdir -p "$c"
 now=$(date +%s)
 echo "Max 20x" > "$c/plan"
