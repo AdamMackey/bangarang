@@ -2,12 +2,7 @@
 
 A Claude Code status line: two rows of everything worth watching, in a rainbow box.
 
-```
-╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ »» B A N G A R A N G «« · ✓ Claude operational · Context █████░░░░░ 47% · Refill ████░░░░░░ 2hr · Cache ████████░░ 45m │
-│ Opus 5.5 (1M) · Max Effort · Max 20x · $112.33 · Session █████░░░░░ 25% · Weekly ██████████ 14% · Fable ████░░░░░░  5% │
-╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-```
+![Bangarang in Terminal: BANGARANG and Claude's status with the context, refill and cache meters on top; model, effort, plan and cost with the session, weekly and Fable limits below; all in a rainbow box](docs/screenshot.png)
 
 - **Row 1**: BANGARANG (always there; it grows or shrinks to fill the room row 2 leaves, so the rows
   line up), the status.claude.com verdict (`✓ Claude operational`, or `✕ Claude Outage` /
