@@ -6,7 +6,7 @@ A status line for Claude Code: everything worth watching in two rows, in a rainb
 
 ## What it shows
 
-- **Top row**: BANGARANG, then Claude's service status from status.claude.com
+- **Top row**: BANGARANG (or your own word), then Claude's service status from status.claude.com
   (`✓ Claude operational`, or `✕ Claude Outage` / `✕ Claude Maintenance` in amber, orange or red
   by severity), then bars for the context window, the time until your 5-hour limit refills, and
   how long the prompt cache stays warm.
@@ -54,6 +54,18 @@ to the command (`"command": "~/.claude/statusline.sh --usage"`), or set `BANGARA
 Bangarang runs Claude Code's own `/usage` headless every 10 minutes in the background to read them.
 That makes no model call and costs nothing, but it does start a `claude` process, so it's off unless
 you turn it on.
+
+### Your own word
+
+BANGARANG is the default. Swap in whatever word you like with `--phrase`:
+
+```json
+"command": "~/.claude/statusline.sh --phrase LFG"
+```
+
+or set `BANGARANG_PHRASE=LFG`. It gets the same letter-spacing, chevrons and rainbow, and still fits
+the rows exactly. A short word in capitals looks best. Options go together, as in
+`~/.claude/statusline.sh --usage --phrase LFG`.
 
 ## What it reads and fetches
 

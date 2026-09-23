@@ -104,9 +104,21 @@ now=$(date +%s)
 # The per-model weekly limits (Fable and so on) cost a headless claude run every
 # ten minutes, so they are off unless asked for: --usage on the status line
 # command, or BANGARANG_USAGE=1 in its environment.
+# The word at the top left is BANGARANG unless --phrase WORD (or --phrase=WORD, or
+# BANGARANG_PHRASE=WORD) makes it yours.
 usage_on=0
-for a in "$@"; do [ "$a" = "--usage" ] && usage_on=1; done
+word="${BANGARANG_PHRASE:-}"
+prev=""
+for a in "$@"; do
+  case "$a" in
+    --usage) usage_on=1 ;;
+    --phrase=*) word="${a#--phrase=}" ;;
+  esac
+  [ "$prev" = "--phrase" ] && word="$a"
+  prev="$a"
+done
 [ "${BANGARANG_USAGE:-}" = 1 ] && usage_on=1
+[ -n "$word" ] || word=BANGARANG
 
 # Look at status.claude.com at most every two minutes, in the background, so the
 # line never waits on the network. setsid gives the check its own session, so it
@@ -140,7 +152,7 @@ if [ "$HOME/.claude.json" -nt "$cache/plan" ]; then
   fi
 fi
 
-exec jq -r --argjson now "$now" \
+exec jq -r --argjson now "$now" --arg word "$word" \
   --arg plan "$(cat "$cache/plan" 2>/dev/null)" \
   --arg usage "$([ "$usage_on" = 1 ] && cat "$cache/usage.json" 2>/dev/null)" \
   --arg usage_failed "$([ "$usage_on" = 1 ] && [ -e "$cache/usage-failed" ] && echo 1)" \
@@ -343,15 +355,18 @@ exec jq -r --argjson now "$now" \
        scoped_meters];
 
   # The phrase, top left of row 1: BANGARANG, the word Adam shouted when the
-  # bars first landed. Bold, in a clay, rose, purple and blue gradient (the
-  # palette of the whole line). Built to fill its room exactly, so the spacing
-  # around it stays even: letter-spaced from 17 characters, an exclamation mark
-  # for an odd leftover, then chevrons, up to four a side, then hearts outside
-  # them, spaced like the letters ("♥ ♥ »»» B A N G A R A N G ««« ♥ ♥"), as far
-  # as the room goes. Three chevrons or four, whichever makes the hearts fit.
+  # bars first landed, or your own ($word, from --phrase). Bold, in a clay, rose,
+  # purple and blue gradient (the palette of the whole line). Built to fill its
+  # room exactly, so the spacing around it stays even: letter-spaced once there
+  # is room for that, an exclamation mark for an odd leftover, then chevrons, up
+  # to four a side, then hearts outside them, spaced like the letters
+  # ("♥ ♥ »»» B A N G A R A N G ««« ♥ ♥"), as far as the room goes. Three
+  # chevrons or four, whichever makes the hearts fit.
   def phrase($w):
-    if $w < 9 then null
-    else (if $w >= 17 then "B A N G A R A N G" else "BANGARANG" end) as $core
+    ($word | length) as $n
+    | ($word | split("") | join(" ")) as $spaced
+    | if $w < $n then null
+    else (if $w >= ($spaced | length) then $spaced else $word end) as $core
       | ($w - ($core | length)) as $e
       | (if $e % 2 == 1 then $core + "!" else $core end) as $c
       | ($e - $e % 2) as $even
@@ -401,7 +416,7 @@ exec jq -r --argjson now "$now" \
   def is_meter: .bar != "";
   def cell_width($lw):
     if is_meter then $lw + 12 + (.tail | visible)
-    elif .flex == true then (.tail | visible) + (if .tail == "" then 9 else 12 end)
+    elif .flex == true then (.tail | visible) + ($word | length) + (if .tail == "" then 0 else 3 end)
     else (.tail | visible) end;
   def render_cell($d):
     (if is_meter then
@@ -427,7 +442,7 @@ exec jq -r --argjson now "$now" \
     | ([$rows[] | .[0] | select(. != null) | cell_width(0)] | max // 0) as $head
     | if any($rows[] | .[0] | select(. != null and .flex != true); $head - (.tail | visible) > 24) then
         [$rows[] | [.[] | if is_meter then .label + " " + .bar + " " + .tail
-                          elif .flex == true then ("» B A N G A R A N G «" | rainbow) + (if .tail == "" then "" else dot + .tail end)
+                          elif .flex == true then ("» " + ($word | split("") | join(" ")) + " «" | rainbow) + (if .tail == "" then "" else dot + .tail end)
                           else .tail end] | join(dot)]
       else
         [$rows[] | . as $row | [range(0; length) as $i | $row[$i] | render_cell($dims[$i])] | join(dot) | sub(" +$"; "")]

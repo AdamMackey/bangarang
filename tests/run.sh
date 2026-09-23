@@ -292,6 +292,14 @@ check "phrase: 33, two hearts"     "♥ ♥ »»» B A N G A R A N G ««« ♥ 
 check "phrase: 34"                 "♥ ♥ »»» B A N G A R A N G! ««« ♥ ♥" "$(ph 34)"
 check "phrase: never under 9, row 2 makes room" "BANGARANG BANGARANG" "$(ph 8) $(ph 3)"
 check "phrase: fills its room at every width" "yes" "$(for r in $(seq 9 40); do ph $r | python3 -c "import sys; print('yes' if len(sys.stdin.read().rstrip('\\n')) == $r else 'no at $r')"; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
+# your own word: --phrase WORD, --phrase=WORD or BANGARANG_PHRASE=WORD
+phw() { jq -nc --arg n "$(printf "%$(($2 + 2))s" | tr ' ' x)" '{model: {display_name: $n}, cost: {total_cost_usd: 1234.56}}' | HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" bash "$new" --usage --phrase "$1" | unbox | sed -n 1p | plain | sed -E 's/ · .*$//'; }
+check "phrase: your own word with --phrase"     "»» L F G ««" "$(phw LFG 11)"
+check "phrase: --phrase=WORD works too"         "yes" "$(full | HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" bash "$new" --usage --phrase=VIBES | unbox | sed -n 1p | plain | grep -q 'V I B E S' && echo yes || echo no)"
+check "phrase: so does BANGARANG_PHRASE"        "yes" "$(full | HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" BANGARANG_PHRASE=VIBES bash "$new" --usage | unbox | sed -n 1p | plain | grep -q 'V I B E S' && echo yes || echo no)"
+check "phrase: your word fills its room at every width" "yes" "$(for r in $(seq 6 40); do phw WOOHOO $r | python3 -c "import sys; print('yes' if len(sys.stdin.read().rstrip('\\n')) == $r else 'no at $r')"; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
+check "phrase: your word never leaves either"   "WOOHOO" "$(phw WOOHOO 2)"
+check "phrase: an empty --phrase keeps BANGARANG" "yes" "$(phw '' 17 | grep -q 'B A N G A R A N G' && echo yes || echo no)"
 check "phrase: gradient starts clay, bold"  "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'^\e\\[1;38;2;215;135;95m♥')"
 check "phrase: gradient ends blue, bold"    "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[1;38;2;89;136;213m♥\e\\[0m\e\\[38;2;98;106;133m · ')"
 check "phrase: the status follows it"  "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · ✓ Claude operational · Context ' && echo yes || echo no)"
