@@ -320,8 +320,10 @@ check "outage: BANGARANG, then the outage" "yes" "$(full | run | sed -n 1p | pla
 check "outage: the rows stay lined up" "aligned" "$(full | run | align)"
 seed ok
 # the refill timer: the session window's time left
-check "refill: 230m left is 8 cells, 4h" "Refill ████████░░ 4hr" "$(full | run | sed -n 1p | plain | grep -o 'Refill [█░]* [0-9]*[a-z]*')"
-check "refill: under an hour in minutes"  "Refill ██░░░░░░░░ 42m" "$(payload 4 42 12 7000 | run | sed -n 1p | plain | grep -o 'Refill [█░]* [0-9]*[a-z]*')"
+check "refill: 230m left, 2 cells filled, 4hr" "Refill ██░░░░░░░░ 4hr" "$(full | run | sed -n 1p | plain | grep -o 'Refill [█░]* [0-9]*[a-z]*')"
+check "refill: 42m left, 8 cells filled, in minutes" "Refill ████████░░ 42m" "$(payload 4 42 12 7000 | run | sed -n 1p | plain | grep -o 'Refill [█░]* [0-9]*[a-z]*')"
+check "refill: empty just after a reset"   "Refill ░░░░░░░░░░ 5hr" "$(payload 4 299 12 7000 | run | sed -n 1p | plain | grep -o 'Refill [█░]* [0-9]*[a-z]*')"
+check "refill: 9 cells in the last half hour" "Refill █████████░ 12m" "$(payload 4 12 12 7000 | run | sed -n 1p | plain | grep -o 'Refill [█░]* [0-9]*[a-z]*')"
 check "refill: none once the window reset" "0" "$(row1 < "$here/base.json" | plain | grep -c Refill)"
 # both rows end on the same column when they have as many cells (numbers right-aligned in the last column)
 seedu fresh

@@ -10,9 +10,9 @@ A status line for Claude Code: everything worth watching in two rows, in a rainb
 
 - **Top row**: BANGARANG (or your own word), then Claude's service status from status.claude.com
   (`✓ Claude operational`, or `✕ Claude Outage` / `✕ Claude Maintenance` in amber, orange or red
-  by severity), then bars for the context window, the time until your 5-hour limit refills, and
-  how long the prompt cache stays warm (`…` until a session's first reply, when Claude Code starts
-  tracking it).
+  by severity), then bars for the context window, the refill of your 5-hour limit (it fills up as
+  the refill nears, with the time left beside it), and how long the prompt cache stays warm (`…`
+  until a session's first reply, when Claude Code starts tracking it; `0%` once it has lapsed).
 - **Bottom row**: model, effort, fast mode, your plan and what the session has cost so far, then
   bars for the 5-hour and weekly limits, plus per-model limits such as Fable's if you turn them on.
 - Limit numbers turn amber from 70% and red from 90%. The lighter cells on a limit bar show where

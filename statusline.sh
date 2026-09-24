@@ -272,14 +272,16 @@ exec jq -r --argjson now "$now" --arg word "$word" \
       end;
 
   # Refill: the time left before the 5-hour window resets and that limit comes
-  # back in full, as a bar draining like the cache timer. Hours from an hour
+  # back in full. The bar FILLS as the refill nears (Adam: "the progress bar
+  # grows as the time nears for refill"): empty just after a reset, one cell
+  # per half hour gone; it is the mirror of the time left. Hours from an hour
   # out (rounded), minutes after that.
   def refill_meter:
     .rate_limits.five_hour.resets_at as $r
     | select($r != null)
     | ($r - $now) as $left
     | select($left > 0)
-    | ([($left / 18000 * 10 | ceil), 10] | min) as $cells
+    | (10 - ([($left / 18000 * 10 | ceil), 10] | min) | [., 0] | max) as $cells
     | {label: tint(c_text; "Refill"),
        bar: (tint(c_bar; rep("█"; $cells)) + tint(c_dot; rep("░"; 10 - $cells))),
        # "2hr" rather than "2h": three characters, like the numbers around it.
