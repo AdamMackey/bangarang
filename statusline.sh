@@ -247,7 +247,8 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   # The prompt cache: Claude keeps the conversation cached for its TTL (an hour
   # on a subscription) after each message; once it lapses, the next reply
   # re-reads the whole context. A bar of the time left and an empty bar once it
-  # has gone cold, with the words always in the "!" blue like context: the bar
+  # has gone cold, reading 0% (Adam: "instead of cold put 0%"), with the words
+  # always in the "!" blue like context: the bar
   # shows how close it is. Claude Code redraws the line itself the moment it expires.
   # Always there (Adam: "always show the cache"): before the first request of a
   # session Claude Code has no cache to report (it only tracks one once this
@@ -267,7 +268,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
             ([($left / $ttl * 10 | ceil), 10] | min) as $cells
             | $cell + {bar: (tint(c_bar; rep("█"; $cells)) + tint(c_dot; rep("░"; 10 - $cells))),
                        tail: tint(c_text; "\($left / 60 | ceil)m")}
-          else $cell + {bar: tint(c_dot; rep("░"; 10)), tail: tint(c_text; "cold")} end
+          else $cell + {bar: tint(c_dot; rep("░"; 10)), tail: tint(c_text; "0%")} end
       end;
 
   # Refill: the time left before the 5-hour window resets and that limit comes

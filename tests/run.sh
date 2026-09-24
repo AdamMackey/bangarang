@@ -239,7 +239,7 @@ check "XHigh Effort purple, not bold, on Haiku" "yes" "$(echo '{"model":{"displa
 check "context bar: 43% is 4 cells" "Context █████░░░░░ 43%" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":43,"context_window_size":1000000}}' | row1 | plain | grep -o 'Context [█░]* [0-9]*%')"
 check "context bar cells: used periwinkle, rest slate" "yes" "$(row1 < "$here/base.json" | has $'\e\\[38;2;114;124;214m█\e\\[0m\e\\[38;2;98;106;133m░░░░░░░░░\e\\[0m \e\\[38;2;114;124;214m7%')"
 check "Max Effort in Fable purple, bold, even on Opus"  "yes" "$(raw2 < "$here/base.json" | has $'\e\\[1;38;5;134mMax Effort\e\\[0m')"
-# the prompt cache on row 1: time left as a bar, words always the "!" blue, cold when lapsed
+# the prompt cache on row 1: time left as a bar, words always the "!" blue, 0% when lapsed
 pc() { jq -c --argjson now "$now" --arg w "$1" --arg ttl "$2" --arg left "$3" '.prompt_cache = {warm: ($w == "true"), ttl: $ttl, expires_at: (if $left == "null" then null else $now + ($left|tonumber) end)}' "$here/base.json"; }
 C=$'\e\\[38;2;128;175;177m'
 check "cache: 58m left is a full cyan bar"   "✓ Claude operational · Context █░░░░░░░░░ 7% · Cache ██████████ 58m" "$(pc true 1h 3480 | row1 | plain | nophrase1)"
@@ -248,9 +248,10 @@ check "cache: under 10m stays blue"         "yes" "$(pc true 1h 480 | row1 | has
 check "cache: never amber"                   "no" "$(pc true 1h 480 | row1 | has "${A}")"
 check "cache: 8m left shows 2 cells"         "Cache ██░░░░░░░░ 8m" "$(pc true 1h 480 | row1 | plain | grep -o 'Cache [█░]* [0-9]*m')"
 check "cache: warm label is blue"            "yes" "$(pc true 1h 3480 | row1 | has "${U}Cache")"
-check "cache: cold when not warm"            "Cache ░░░░░░░░░░ cold" "$(pc false 1h 3000 | row1 | plain | grep -o 'Cache [░]* cold')"
-check "cache: cold once the expiry passes"   "Cache ░░░░░░░░░░ cold" "$(pc true 1h -60 | row1 | plain | grep -o 'Cache [░]* cold')"
-check "cache: cold is blue"                  "yes" "$(pc false 1h 0 | row1 | has "${U}cold")"
+check "cache: 0% when not warm"              "Cache ░░░░░░░░░░ 0%" "$(pc false 1h 3000 | row1 | plain | grep -o 'Cache [░]* *0%')"
+check "cache: 0% once the expiry passes"     "Cache ░░░░░░░░░░ 0%" "$(pc true 1h -60 | row1 | plain | grep -o 'Cache [░]* *0%')"
+check "cache: 0% is blue"                    "yes" "$(pc false 1h 0 | row1 | has "${U}0%")"
+check "cache: no cold wording left"          "0" "$(pc false 1h 0 | row1 | plain | grep -c cold)"
 check "cache: a 5-minute cache scales"       "Cache ████████░░ 4m" "$(pc true 5m 240 | row1 | plain | grep -o 'Cache [█░]* [0-9]*m')"
 check "cache: warm with no expiry waits"    "Cache ░░░░░░░░░░ …" "$(pc true 1h null | row1 | plain | grep -o 'Cache [░]* …')"
 check "cache: always there, waiting before the first reply" "Cache ░░░░░░░░░░ …" "$(row1 < "$here/base.json" | plain | grep -o 'Cache [░]* …')"
