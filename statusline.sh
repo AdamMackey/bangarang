@@ -249,21 +249,26 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   # re-reads the whole context. A bar of the time left and an empty bar once it
   # has gone cold, with the words always in the "!" blue like context: the bar
   # shows how close it is. Claude Code redraws the line itself the moment it expires.
-  # Nothing is shown before the first request, or if a warm cache has no
-  # expiry time.
+  # Always there (Adam: "always show the cache"): before the first request of a
+  # session Claude Code has no cache to report (it only tracks one once this
+  # process has made a request, so a fresh or resumed session starts without
+  # it), and a warm cache can lack an expiry time; both show an empty bar and
+  # "…", waiting.
   def cache_meter:
     .prompt_cache as $pc
-    | select($pc != null)
-    | ({"1h": 3600, "5m": 300}[$pc.ttl // "1h"] // 3600) as $ttl
-    | (if $pc.warm == true then $pc.expires_at else 0 end) as $until
-    | select($until != null)
-    | ($until - $now) as $left
-    | if $left > 0 then
-        ([($left / $ttl * 10 | ceil), 10] | min) as $cells
-        | {label: tint(c_text; "Cache"),
-           bar: (tint(c_bar; rep("█"; $cells)) + tint(c_dot; rep("░"; 10 - $cells))),
-           tail: tint(c_text; "\($left / 60 | ceil)m")}
-      else {label: tint(c_text; "Cache"), bar: tint(c_dot; rep("░"; 10)), tail: tint(c_text; "cold")} end;
+    | {label: tint(c_text; "Cache")} as $cell
+    | if $pc == null or ($pc.warm == true and $pc.expires_at == null) then
+        $cell + {bar: tint(c_dot; rep("░"; 10)), tail: tint(c_text; "…")}
+      else
+        ({"1h": 3600, "5m": 300}[$pc.ttl // "1h"] // 3600) as $ttl
+        | (if $pc.warm == true then $pc.expires_at else 0 end) as $until
+        | ($until - $now) as $left
+        | if $left > 0 then
+            ([($left / $ttl * 10 | ceil), 10] | min) as $cells
+            | $cell + {bar: (tint(c_bar; rep("█"; $cells)) + tint(c_dot; rep("░"; 10 - $cells))),
+                       tail: tint(c_text; "\($left / 60 | ceil)m")}
+          else $cell + {bar: tint(c_dot; rep("░"; 10)), tail: tint(c_text; "cold")} end
+      end;
 
   # Refill: the time left before the 5-hour window resets and that limit comes
   # back in full, as a bar draining like the cache timer. Hours from an hour

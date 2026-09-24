@@ -252,8 +252,9 @@ check "cache: cold when not warm"            "Cache ░░░░░░░░░�
 check "cache: cold once the expiry passes"   "Cache ░░░░░░░░░░ cold" "$(pc true 1h -60 | row1 | plain | grep -o 'Cache [░]* cold')"
 check "cache: cold is blue"                  "yes" "$(pc false 1h 0 | row1 | has "${U}cold")"
 check "cache: a 5-minute cache scales"       "Cache ████████░░ 4m" "$(pc true 5m 240 | row1 | plain | grep -o 'Cache [█░]* [0-9]*m')"
-check "cache: warm with no expiry: nothing"  "0" "$(pc true 1h null | row1 | plain | grep -c Cache)"
-check "cache: none before the first reply"   "0" "$(row1 < "$here/base.json" | plain | grep -c Cache)"
+check "cache: warm with no expiry waits"    "Cache ░░░░░░░░░░ …" "$(pc true 1h null | row1 | plain | grep -o 'Cache [░]* …')"
+check "cache: always there, waiting before the first reply" "Cache ░░░░░░░░░░ …" "$(row1 < "$here/base.json" | plain | grep -o 'Cache [░]* …')"
+check "cache: the wait is in the blue, the bar slate" "yes" "$(row1 < "$here/base.json" | has $'\e\\[38;2;114;124;214mCache\e\\[0m .*\e\\[38;2;98;106;133m░░░░░░░░░░\e\\[0m *\e\\[38;2;114;124;214m…')"
 check "cache sits after context"  "yes" "$(pc true 1h 3480 | row1 | plain | grep -q '7% · Cache ██████████ 58m$' && echo yes || echo no)"
 check "context bar blue at 75%"        "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":75,"context_window_size":1000000}}' | row1 | has "${U}████████"$'\e\\[0m')"
 check "cache bar and words blue"   "yes" "$(pc true 1h 480 | row1 | has "${U}Cache"$'\e\\[0m'" *${U}██")"
@@ -379,10 +380,10 @@ seedu none
 # row 1 for a handful of payloads, from full to bare
 seed ok
 check "row 2 head: full"          "Opus 5 (1M) · Max Effort · \$0.98" "$(head2 < "$here/base.json")"
-check "row 1: the status and Context after the phrase" "✓ Claude operational · Context █░░░░░░░░░ 7%" "$(row1 < "$here/base.json" | plain | nophrase1)"
+check "row 1: the status and Context after the phrase" "✓ Claude operational · Context █░░░░░░░░░ 7% · Cache ░░░░░░░░░░ …" "$(row1 < "$here/base.json" | plain | nophrase1)"
 check "row 2 head: effort only"   "Opus 5.5 · Max Effort" "$(echo '{"model":{"id":"claude-opus-5-5","display_name":"Opus 5.5"},"effort":{"level":"max"}}' | head2)"
 check "row 2 head: fast, 200k, cost" "Sonnet 5 (200k) · fast · \$12.50" "$(echo '{"model":{"id":"claude-sonnet-5","display_name":"Sonnet 5"},"fast_mode":true,"context_window":{"used_percentage":93,"context_window_size":200000},"cost":{"total_cost_usd":12.5}}' | head2)"
-check "row 1: the status and a full Context" "✓ Claude operational · Context ██████████ 93%" "$(echo '{"model":{"id":"claude-sonnet-5","display_name":"Sonnet 5"},"fast_mode":true,"context_window":{"used_percentage":93,"context_window_size":200000},"cost":{"total_cost_usd":12.5}}' | row1 | plain | nophrase1)"
+check "row 1: the status and a full Context" "✓ Claude operational · Context ██████████ 93% · Cache ░░░░░░░░░░ …" "$(echo '{"model":{"id":"claude-sonnet-5","display_name":"Sonnet 5"},"fast_mode":true,"context_window":{"used_percentage":93,"context_window_size":200000},"cost":{"total_cost_usd":12.5}}' | row1 | plain | nophrase1)"
 check "row 2 head: id only"       "x" "$(echo '{"model":{"id":"x"}}' | head2)"
 check "row 2 head: nothing at all" "unknown model" "$(echo '{}' | head2)"
 
