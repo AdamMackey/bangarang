@@ -188,11 +188,12 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   def c_dot:    "\u001b[38;2;98;106;133m";    # slate: the dots between pieces
   def c_fast:   "\u001b[38;2;240;195;90m";    # gold: fast mode
   def c_ok:     "\u001b[38;2;135;169;141m";   # calm sage: all clear, washed out and a little warm, easy on the eyes
-  # What the session has cost is GIGA ORANGE, the fast-mode orange of Claude Code
-  # itself (its dark theme fastMode): the partner to GIGA PURPLE, far from the rose
-  # plan beside it and the amber of the limits (Adam, 2026-09-25: "GIGA ORANGE
-  # OR GIGA PURPLE YOUR CALL"; purple would melt into the model and effort).
-  def c_cost:   "\u001b[38;2;255;120;20m";
+  # What the session has cost is in the pale rose of the plan, so the plan and its
+  # spend read as one pair (Adam, 2026-09-25: "the dollar value should be same
+  # colour as Max x20"). It was GIGA ORANGE before that, and sage before that.
+  # Defined after c_plan because jq only sees what is above it. No apostrophes in
+  # these comments: the whole jq program sits inside single quotes.
+  def c_cost:   c_plan;
   def c_plan:   "\u001b[38;2;232;142;144m";   # pale rose: the plan, pinker and paler than the Meterous warning red
   def dot: tint(c_dot; " · ");
   # Meter words (labels and numbers) are GIGA BLUE, the periwinkle of the "!"
