@@ -1,7 +1,7 @@
 #!/bin/bash
 # Bangarang, a Claude Code status line: two rows in a rainbow box.
 #   1. BANGARANG (always there, sized to fill the room row 2 leaves) and Claude's
-#      service from status.claude.com, the way Pulseous shows it (✓ Claude
+#      service from status.claude.com, the way Pulseous shows it (Claude
 #      operational, ✕ Claude Outage or Maintenance in the colour of how bad it
 #      is, ? when there is no fresh answer); then bars for the context window,
 #      the time until the 5-hour limit refills, and the prompt cache.
@@ -314,9 +314,9 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   # Row 1 as table cells (Adam: "move BANGARANG to the top left", then "swap
   # Claude operational with Max 20x and $"): the head is the phrase (flex: it
   # fills the room the row 2 head leaves, and never leaves: "Bangarang can
-  # never leave") and the Claude status, whose mark stands where a dot would,
-  # over a dot of row 2 when the phrase can reach it (see layout); then the
-  # context meter, the refill timer and the cache meter.
+  # never leave") and the Claude status, after a dot (or a problem mark in its
+  # place) that stands over a dot of row 2 when the phrase can reach it (see
+  # layout); then the context meter, the refill timer and the cache meter.
   def cells_session($st):
     .context_window.used_percentage as $used
     | [{label: "", bar: "", flex: true, tail: $st.text},
@@ -347,7 +347,9 @@ exec jq -r --argjson now "$now" --arg word "$word" \
     | ($failed != "1" and $now - $checked < 15) as $checking
     | if $s != null and ($now - ($s.at // 0) <= 1200 or $checking) then
         (if ($s.tone // "ok") == "ok" or ($s.text // "") == "" then
-           {ok: true, text: tint(c_ok; "✓ Claude operational")}
+           # All clear has no mark, just the dot before it (Adam: "replace the
+           # check with a dot"); the words say it, so it never looks empty.
+           {ok: true, text: tint(c_ok; "Claude operational")}
          # A problem is just "Claude Outage" (maintenance says so), in the colour
          # of how bad it is, so BANGARANG always keeps its room (Adam: "just call
          # it a Claude Outage so Bangarang stays").
@@ -445,10 +447,11 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   def bare: gsub("\u001b\\[[0-9;]*m"; "");
   def visible: bare | length;
   def is_meter: .bar != "";
-  # The status mark (✓, ✕ or ?) stands where the dot after the phrase would be,
-  # a bullet for the status (Adam: "move the checkmark"); a status without one
-  # ("checking Claude status…") keeps the dot. flex_sep is what joins them.
-  def flex_sep: if .tail | bare | test("^[✓✕?] ") then " " else dot end;
+  # A problem mark (✕ or ?) stands where the dot after the phrase would be, a
+  # bullet for the status. All clear has none (Adam: "replace the check with a
+  # dot"), nor does "checking Claude status…", so they keep the dot; mark and
+  # dot take the same room. flex_sep is what joins the phrase and the status.
+  def flex_sep: if .tail | bare | test("^[✕?] ") then " " else dot end;
   def cell_width($lw; $pw):
     if is_meter then $lw + 12 + (.tail | visible)
     elif .flex == true then (.tail | visible) + $pw + (if .tail == "" then 0 else flex_sep | visible end)
@@ -467,12 +470,12 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   def layout:
     . as $rows
     | ([$rows[] | length] | max) as $n
-    # The phrase reaches to a dot in the head of row 2 when it can, so the
-    # status mark stands right over that dot (Adam: "line up with the Max x20
-    # dot"; for him the dot before Max 20x, once a session passes $10): the dot
-    # that leaves row 2 the least to pad, two spaces at most. Row 1 never pads,
-    # since the phrase can fill any room. $pw is the room the phrase keeps: that
-    # reach, else the shortest phrase, which then fills what row 2 leaves.
+    # The phrase reaches to a dot in the head of row 2 when it can, so the dot
+    # (or mark) before the status stands right over it (Adam: "line up with the
+    # Max x20 dot"; for him the dot before Max 20x, once a session passes $10):
+    # the dot that leaves row 2 the least to pad, two spaces at most. Row 1
+    # never pads, since the phrase can fill any room. $pw is the room the phrase
+    # keeps: that reach, else the shortest phrase, which fills what row 2 leaves.
     | [$rows[] | .[0] | select(. != null and .flex != true) | .tail | bare] as $heads
     | ([$heads[] | length] | max // 0) as $hw
     | ([$rows[] | .[0] | select(. != null and .flex == true)] | first) as $f

@@ -110,7 +110,7 @@ nobar() { sed -E 's/[██░]{10} //g'; }
 # together (the status from row 1, the limits from row 2), the way one row used to show them.
 nophrase1() { sed -E 's/^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)*( · | )?//'; }
 # the phrase alone: everything before the status mark (or the dot)
-phrase1() { sed -E 's/ (· |[✓✕?] ).*$//'; }
+phrase1() { sed -E 's/ (· |[✕?] ).*$//'; }
 statuslimits() { local o st li; o=$(cat)
   st=$(printf '%s\n' "$o" | sed -n 1p | nophrase1 | sed -E 's/ · (Context|Refill|Cache) .*$//; s/ +$//')
   li=$(printf '%s\n' "$o" | sed -n 2p | perl -ne 'print $1 if /^.*? · ((?:Session|Weekly|Fable)[ ?].*)$/')
@@ -122,7 +122,7 @@ head2() { run | plain | sed -n 2p | perl -pe 's/ · (?:Session|Weekly|Fable)[ ?]
 acct() { printf '{"numStartups":3,"oauthAccount":{"emailAddress":"x@example.com","organizationType":"%s","organizationRateLimitTier":%s}}' "$1" "$2" > "$dh/.claude.json"; }
 aged() { touch -t "$(epochfmt $((now - 60)) %Y%m%d%H%M.%S)" "$dc/plan"; }   # the cached answer is a minute old
 
-OK='✓ Claude operational · '
+OK='Claude operational · '
 # A time the way the script words it from a day out: weekday (plus date from six days), hour, minutes unless :00, am/pm.
 fmt() { epochfmt "$1" "$2 %l:%M%p" | tr -s ' ' | sed 's/:00\([AP]M\)$/\1/; s/AM$/am/; s/PM$/pm/'; }
 
@@ -141,7 +141,7 @@ check "red meter near the end"                           "${OK}Session 95% · We
 check "limit reached: no pace, just the reset"           "${OK}Session 100% · Weekly 12%" "$(payload 100 65 12 7000 | row2)"
 check "reset days away: weekday only"                    "${OK}Weekly 75%" "$(payload - 0 75 4320 | row2)"
 check "reset six days or more away: date too"            "${OK}Weekly 75%" "$(payload - 0 75 9000 | row2)"
-check "no limits: the tick alone"                        "✓ Claude operational"                      "$(payload - 0 - 0 | row2)"
+check "no limits: the status alone"                      "Claude operational"                      "$(payload - 0 - 0 | row2)"
 touch "$dc/status-failed"
 check "fresh verdict survives a blip"                    "${OK}Session 4% · Weekly 12%"   "$(payload 4 230 12 7000 | row2)"
 
@@ -244,7 +244,7 @@ check "Max Effort in GIGA PURPLE, bold, even on Opus"  "yes" "$(raw2 < "$here/ba
 # the prompt cache on row 1: time left as a bar, words always the "!" blue, 0% when lapsed
 pc() { jq -c --argjson now "$now" --arg w "$1" --arg ttl "$2" --arg left "$3" '.prompt_cache = {warm: ($w == "true"), ttl: $ttl, expires_at: (if $left == "null" then null else $now + ($left|tonumber) end)}' "$here/base.json"; }
 C=$'\e\\[38;2;128;175;177m'
-check "cache: 58m left is a full cyan bar"   "✓ Claude operational · Context █░░░░░░░░░ 7% · Cache ██████████ 58m" "$(pc true 1h 3480 | row1 | plain | nophrase1)"
+check "cache: 58m left is a full cyan bar"   "Claude operational · Context █░░░░░░░░░ 7% · Cache ██████████ 58m" "$(pc true 1h 3480 | row1 | plain | nophrase1)"
 check "cache: 30m left is half a bar"        "Cache █████░░░░░ 30m" "$(pc true 1h 1800 | row1 | plain | grep -o 'Cache [█░]* [0-9]*m')"
 check "cache: under 10m stays blue"         "yes" "$(pc true 1h 480 | row1 | has "${U}Cache")"
 check "cache: never amber"                   "no" "$(pc true 1h 480 | row1 | has "${A}")"
@@ -278,11 +278,11 @@ check "rows line up with Fable too"      "aligned" "$(full | run | align)"
 seedu none
 check "rows line up with an amber meter" "aligned" "$(payload 4 230 83 950 | jq -c --argjson now "$now" '.prompt_cache = {warm: true, ttl: "1h", expires_at: ($now + 3480)}' | run | align)"
 check "no limits: row 2 is the model, effort and cost" "Opus 5 (1M) · Max Effort · \$0.98" "$(payload - 0 - 0 | jq -c --argjson now "$now" '.prompt_cache = {warm: true, ttl: "1h", expires_at: ($now + 3480)}' | run | sed -n 2p | plain)"
-check "no limits: row 1 still whole"      "✓ Claude operational · Context █░░░░░░░░░ 7% · Cache ██████████ 58m" "$(payload - 0 - 0 | jq -c --argjson now "$now" '.prompt_cache = {warm: true, ttl: "1h", expires_at: ($now + 3480)}' | run | sed -n 1p | plain | nophrase1)"
+check "no limits: row 1 still whole"      "Claude operational · Context █░░░░░░░░░ 7% · Cache ██████████ 58m" "$(payload - 0 - 0 | jq -c --argjson now "$now" '.prompt_cache = {warm: true, ttl: "1h", expires_at: ($now + 3480)}' | run | sed -n 1p | plain | nophrase1)"
 # the phrase, top left of row 1: sized to the room row 2 leaves, gradient and bold, only while all is clear.
 # With the plan (Max 20x) and a $1234.56 cost after a model name of n letters (no effort), row 2's
-# head is n + 21 wide; row 1 is the phrase + " ✓ Claude operational" (21), so the room is n (and the
-# ✓ stands over the dot after the model name). ph r gives the phrase for a room of r.
+# head is n + 21 wide; row 1 is the phrase + " · Claude operational" (21), so the room is n (and its
+# dot stands over the dot after the model name). ph r gives the phrase for a room of r.
 acct claude_max '"default_claude_max_20x"'; aged 2>/dev/null
 ph() { jq -nc --arg n "$(printf "%$1s" | tr ' ' x)" '{model: {display_name: $n}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | plain | phrase1; }
 check "phrase: 9"                  "BANGARANG"                        "$(ph 9)"
@@ -311,24 +311,25 @@ check "phrase: your word fills its room at every width" "yes" "$(for r in $(seq 
 check "phrase: your word never leaves either"   "WOOHOO" "$(phw WOOHOO 2)"
 check "phrase: an empty --phrase keeps BANGARANG" "yes" "$(phw '' 17 | grep -q 'B A N G A R A N G' && echo yes || echo no)"
 check "phrase: gradient starts clay, bold"  "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'^\e\\[1;38;2;215;135;95m♥')"
-check "phrase: gradient ends blue, bold"    "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[1;38;2;89;136;213m♥\e\\[0m \e\\[38;2;135;169;141m✓')"
-check "phrase: the status follows it"  "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* ✓ Claude operational · Context ' && echo yes || echo no)"
-# The status mark stands right over a dot in row 2 (Adam: "line up with the Max x20 dot"): for
+check "phrase: gradient ends blue, bold"    "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[1;38;2;89;136;213m♥\e\\[0m\e\\[38;2;98;106;133m · ')"
+check "phrase: the status follows it"  "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · Claude operational · Context ' && echo yes || echo no)"
+# The dot (or problem mark) before the status stands right over a dot in row 2 (Adam: "line up
+# with the Max x20 dot", then "replace the check with a dot"): for
 # Opus 5.5 (1M) at max effort on Max 20x, the dot before the plan once a session passes $10, with
 # row 2 padding out what is left (two spaces at most). Under that, the phrase fills as before.
 adam() { full | jq -c --argjson c "$1" '.model.display_name = "Opus 5.5" | .cost.total_cost_usd = $c'; }
 over() { run | sed $'s/\e\\[[0-9;]*m//g' | python3 -c '
 import sys
 r = [l.rstrip("\n") for l in sys.stdin][:2]
-m = next((i for i, ch in enumerate(r[0]) if ch in "✓✕?"), -1)
+m = next((i for i, ch in enumerate(r[0]) if ch in "·✕?"), -1)
 d = r[1].find("Max 20x") - 2
 print("over" if m == d else "off by %d" % (m - d))'; }
-check "mark: over the dot before Max 20x from \$10" "over over over" "$(for c in 45.67 112.33 1234.56; do adam $c | over; done | tr '\n' ' ' | sed 's/ $//')"
-check "mark: row 2 pads out two spaces at most" "3 2 1" "$(for c in 45.67 112.33 1234.56; do adam $c | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print length($1) if /\$[0-9.]+( +)· Session/'; echo; done | tr '\n' ' ' | sed 's/ $//')"
-check "mark: the rows stay a table"     "aligned aligned aligned" "$(for c in 45.67 112.33 1234.56; do adam $c | run | align; done | tr '\n' ' ' | sed 's/ $//')"
-check "mark: under \$10 the phrase fills instead" "off by -3 aligned" "$(adam 5.43 | over) $(adam 5.43 | run | align)"
+check "row 1 dot: over the dot before Max 20x from \$10" "over over over" "$(for c in 45.67 112.33 1234.56; do adam $c | over; done | tr '\n' ' ' | sed 's/ $//')"
+check "row 1 dot: row 2 pads out two spaces at most" "3 2 1" "$(for c in 45.67 112.33 1234.56; do adam $c | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print length($1) if /\$[0-9.]+( +)· Session/'; echo; done | tr '\n' ' ' | sed 's/ $//')"
+check "row 1 dot: the rows stay a table" "aligned aligned aligned" "$(for c in 45.67 112.33 1234.56; do adam $c | run | align; done | tr '\n' ' ' | sed 's/ $//')"
+check "row 1 dot: under \$10 the phrase fills instead" "off by -3 aligned" "$(adam 5.43 | over) $(adam 5.43 | run | align)"
 seed corrupt
-check "mark: none while checking, so the dot stays" "yes" "$(full | run | sed -n 1p | plain | grep -qE '(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · checking Claude status… · Context ' && echo yes || echo no)"
+check "row 1 dot: kept while checking too" "yes" "$(full | run | sed -n 1p | plain | grep -qE '(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · checking Claude status… · Context ' && echo yes || echo no)"
 seed ok
 rm -f "$dh/.claude.json" "$dc"/plan*
 check "phrase: the plan and cost sit on row 2" "0 0" "$(full | run | sed -n 1p | plain | grep -c '\$0.98') $(acct claude_max '"default_claude_max_20x"'; full | run | sed -n 1p | plain | grep -c 'Max 20x')"
@@ -360,7 +361,7 @@ seed ok
 check "cost in the plan's rose"          "yes" "$(raw2 < "$here/base.json" | has $'\e\\[38;2;232;142;144m\\$0.98')"
 check "fast gold"                      "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"fast_mode":true}' | raw2 | has $'\e\\[38;2;240;195;90mfast')"
 check "no faint grey left anywhere"    "0"   "$(payload 4 230 83 950 | run | grep -c $'\e\\[2m')"
-check "all clear is the calm sage, words too" "yes" "$(payload 4 230 12 7000 | row1 | has $'\e\\[38;2;135;169;141m✓ Claude operational')"
+check "all clear is the calm sage, no tick" "yes" "$(payload 4 230 12 7000 | row1 | has $'\e\\[38;2;98;106;133m · \e\\[0m\e\\[38;2;135;169;141mClaude operational')"
 seed "crit:Claude API major outage"
 check "critical is bold Pulseous red" "yes" "$(payload 4 230 12 7000 | row1 | has $'\e\\[1;38;2;232;92;92m✕ Claude Outage')"
 seed "info:Claude API under maintenance"
@@ -402,10 +403,10 @@ seedu none
 # row 1 for a handful of payloads, from full to bare
 seed ok
 check "row 2 head: full"          "Opus 5 (1M) · Max Effort · \$0.98" "$(head2 < "$here/base.json")"
-check "row 1: the status and Context after the phrase" "✓ Claude operational · Context █░░░░░░░░░ 7% · Cache ░░░░░░░░░░ …" "$(row1 < "$here/base.json" | plain | nophrase1)"
+check "row 1: the status and Context after the phrase" "Claude operational · Context █░░░░░░░░░ 7% · Cache ░░░░░░░░░░ …" "$(row1 < "$here/base.json" | plain | nophrase1)"
 check "row 2 head: effort only"   "Opus 5.5 · Max Effort" "$(echo '{"model":{"id":"claude-opus-5-5","display_name":"Opus 5.5"},"effort":{"level":"max"}}' | head2)"
 check "row 2 head: fast, 200k, cost" "Sonnet 5 (200k) · fast · \$12.50" "$(echo '{"model":{"id":"claude-sonnet-5","display_name":"Sonnet 5"},"fast_mode":true,"context_window":{"used_percentage":93,"context_window_size":200000},"cost":{"total_cost_usd":12.5}}' | head2)"
-check "row 1: the status and a full Context" "✓ Claude operational · Context ██████████ 93% · Cache ░░░░░░░░░░ …" "$(echo '{"model":{"id":"claude-sonnet-5","display_name":"Sonnet 5"},"fast_mode":true,"context_window":{"used_percentage":93,"context_window_size":200000},"cost":{"total_cost_usd":12.5}}' | row1 | plain | nophrase1)"
+check "row 1: the status and a full Context" "Claude operational · Context ██████████ 93% · Cache ░░░░░░░░░░ …" "$(echo '{"model":{"id":"claude-sonnet-5","display_name":"Sonnet 5"},"fast_mode":true,"context_window":{"used_percentage":93,"context_window_size":200000},"cost":{"total_cost_usd":12.5}}' | row1 | plain | nophrase1)"
 check "row 2 head: id only"       "x" "$(echo '{"model":{"id":"x"}}' | head2)"
 check "row 2 head: nothing at all" "unknown model" "$(echo '{}' | head2)"
 

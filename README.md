@@ -9,7 +9,7 @@ A status line for Claude Code: everything worth watching in two rows, in a rainb
 ## What it shows
 
 - **Top row**: BANGARANG (or your own word), then Claude's service status from status.claude.com
-  (`✓ Claude operational`, or `✕ Claude Outage` / `✕ Claude Maintenance` in amber, orange or red
+  (`Claude operational`, or `✕ Claude Outage` / `✕ Claude Maintenance` in amber, orange or red
   by severity), then bars for the context window, the refill of your 5-hour limit (it fills up as
   the refill nears, with the time left beside it), and how long the prompt cache stays warm (`…`
   until a session's first reply, when Claude Code starts tracking it; `0%` once it has lapsed).
