@@ -191,14 +191,15 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   def c_cost:   c_ok;                          # what the session has cost, in the same sage (defined after it: jq reads top down)
   def c_plan:   "\u001b[38;2;232;142;144m";   # pale rose: the plan, pinker and paler than the Meterous warning red
   def dot: tint(c_dot; " · ");
-  # Meter words (labels and numbers) are GIGA PURPLE, the violet of the model
-  # name and effort (Adam: "change all the progress bar text and percentages
-  # to GIGA PURPLE"); the bars stay blue. The Fable meter too. The limits turn
-  # the Meterous amber from 70% and red from 90%; context and cache never do.
+  # Meter words (labels and numbers) are GIGA BLUE, the periwinkle of the "!"
+  # in BANGARANG!, and the bars GIGA PURPLE (Adam, 2026-09-25: "revert to GIGA
+  # BLUE for the txt and percentages", "GIGA PURPLE on the progress bars").
+  # The Fable meter too. The limits turn the Meterous amber from 70% and red
+  # from 90%; context and cache never do.
   def amber: "\u001b[38;2;224;165;52m";
   def red:   "\u001b[38;2;229;103;91m";
   def purple: "\u001b[38;5;134m";
-  def c_text: "\u001b[38;2;175;135;255m";
+  def c_text: "\u001b[38;2;114;124;214m";
   def wlevel($base): if . >= 90 then red elif . >= 70 then amber else $base end;
   # Claude status problems in the Pulseous dark palette, bold at worst.
   def tone: {info: "\u001b[38;2;77;155;232m", warn: "\u001b[38;2;251;178;64m", bad: "\u001b[38;2;238;122;80m",
@@ -216,12 +217,13 @@ exec jq -r --argjson now "$now" --arg word "$word" \
           | {landing: (.used_percentage + $rate * (.resets_at - $now))}
         end
     end;
-  # Every bar is the periwinkle blue of the "!" in BANGARANG! (the phrase
-  # gradient, as drawn): used cells in that blue, projected cells a lighter
-  # tint of it, so the two never blur together; the rest is slate. Warnings
-  # live on the words and numbers of the limits, which turn amber and red.
-  def c_bar:       "\u001b[38;2;114;124;214m";
-  def c_projected: "\u001b[38;2;168;174;230m";
+  # Every bar is GIGA PURPLE, the violet of the model name and effort (and of
+  # "accept edits on" in Claude Code): used cells in that violet, projected
+  # cells a lighter tint of it (38% toward white), so the two never blur
+  # together; the rest is slate. Warnings live on the words and numbers of the
+  # limits, which turn amber and red.
+  def c_bar:       "\u001b[38;2;175;135;255m";
+  def c_projected: "\u001b[38;2;205;181;255m";
   # A limit meter, as a table cell {label, bar, tail}: the label and number in
   # the "!" blue (amber from 70%, red from 90%) around a ten-cell bar (solid
   # for the use so far, projected cells up to where the pace says it lands, the
