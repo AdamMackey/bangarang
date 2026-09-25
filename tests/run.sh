@@ -338,7 +338,7 @@ seedu none
 seed "warn:Claude Code degraded, Claude API partial outage, claude.ai major outage +1 more"
 check "a many-service outage is still just Claude Outage, lined up" "yes aligned" "$(full | run | sed -n 1p | plain | grep -q '✕ Claude Outage · Context' && echo yes || echo no) $(full | run | align)"
 seed ok
-check "cost in the sage"                  "yes" "$(raw2 < "$here/base.json" | has $'\e\\[38;2;135;169;141m\\$0.98')"
+check "cost in GIGA ORANGE"              "yes" "$(raw2 < "$here/base.json" | has $'\e\\[38;2;255;120;20m\\$0.98')"
 check "fast gold"                      "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"fast_mode":true}' | raw2 | has $'\e\\[38;2;240;195;90mfast')"
 check "no faint grey left anywhere"    "0"   "$(payload 4 230 83 950 | run | grep -c $'\e\\[2m')"
 check "all clear is the calm sage, words too" "yes" "$(payload 4 230 12 7000 | row1 | has $'\e\\[38;2;135;169;141m✓ Claude operational')"
