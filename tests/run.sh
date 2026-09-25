@@ -228,7 +228,7 @@ check "meter label in GIGA BLUE"   "yes" "$(payload 4 230 12 7000 | raw2 | has $
 check "no purple on session or weekly" "no" "$(payload 4 230 12 7000 | raw2 | has "${P}Session\|${P}Weekly\|${P}4%\|${P}12%")"
 check "amber label at 83%"      "yes" "$(payload 4 230 83 950 | raw2 | has "${A}Weekly")"
 check "projected light purple cells at a 90% landing" "yes" "$(payload 45 150 - 0 | raw2 | has $'\e\\[38;2;205;181;255m████')"
-check "slate dots between pieces"    "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;98;106;133m · \e\\[0m')"
+check "GIGA PURPLE dots between pieces" "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;175;135;255m · \e\\[0m')"
 row1() { run | sed -n 1p; }
 check "context stays blue at 75%"   "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":75,"context_window_size":1000000}}' | row1 | has "${U}75%")"
 check "context stays blue at 95%"    "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":95,"context_window_size":1000000}}' | row1 | has "${U}Context"$'\e\\[0m'" .*${U}95%")"
@@ -311,7 +311,7 @@ check "phrase: your word fills its room at every width" "yes" "$(for r in $(seq 
 check "phrase: your word never leaves either"   "WOOHOO" "$(phw WOOHOO 2)"
 check "phrase: an empty --phrase keeps BANGARANG" "yes" "$(phw '' 17 | grep -q 'B A N G A R A N G' && echo yes || echo no)"
 check "phrase: gradient starts clay, bold"  "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'^\e\\[1;38;2;215;135;95m♥')"
-check "phrase: gradient ends blue, bold"    "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[1;38;2;89;136;213m♥\e\\[0m\e\\[38;2;98;106;133m · ')"
+check "phrase: gradient ends blue, bold"    "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[1;38;2;89;136;213m♥\e\\[0m\e\\[38;2;175;135;255m · ')"
 check "phrase: the status follows it"  "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · Claude operational · Context ' && echo yes || echo no)"
 # The dot (or problem mark) before the status stands right over a dot in row 2 (Adam: "line up
 # with the Max x20 dot", then "replace the check with a dot"): for
@@ -361,7 +361,7 @@ seed ok
 check "cost in the plan's rose"          "yes" "$(raw2 < "$here/base.json" | has $'\e\\[38;2;232;142;144m\\$0.98')"
 check "fast gold"                      "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"fast_mode":true}' | raw2 | has $'\e\\[38;2;240;195;90mfast')"
 check "no faint grey left anywhere"    "0"   "$(payload 4 230 83 950 | run | grep -c $'\e\\[2m')"
-check "all clear is the calm sage, no tick" "yes" "$(payload 4 230 12 7000 | row1 | has $'\e\\[38;2;98;106;133m · \e\\[0m\e\\[38;2;135;169;141mClaude operational')"
+check "all clear is the calm sage, no tick" "yes" "$(payload 4 230 12 7000 | row1 | has $'\e\\[38;2;175;135;255m · \e\\[0m\e\\[38;2;135;169;141mClaude operational')"
 seed "crit:Claude API major outage"
 check "critical is bold Pulseous red" "yes" "$(payload 4 230 12 7000 | row1 | has $'\e\\[1;38;2;232;92;92m✕ Claude Outage')"
 seed "info:Claude API under maintenance"

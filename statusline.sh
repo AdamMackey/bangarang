@@ -185,7 +185,8 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   def tint(c; s): if s == "" then "" else c + s + "\u001b[0m" end;
   def rep(s; n): if n > 0 then s * n else "" end;
   def c_words:  "\u001b[38;2;208;195;167m";   # sand: the words around numbers (warm, so it never competes with the numbers)
-  def c_dot:    "\u001b[38;2;98;106;133m";    # slate: the dots between pieces
+  def c_dot:    "\u001b[38;2;175;135;255m";   # GIGA PURPLE: the dots between pieces, like the bars and the model (Adam: "make all the dots GIGA PURPLE")
+  def c_empty:  "\u001b[38;2;98;106;133m";    # slate: the empty cells of the bars (the dots wore it until they went purple)
   def c_fast:   "\u001b[38;2;240;195;90m";    # gold: fast mode
   def c_ok:     "\u001b[38;2;135;169;141m";   # calm sage: all clear, washed out and a little warm, easy on the eyes
   def c_plan:   "\u001b[38;2;232;142;144m";   # pale rose: the plan, pinker and paler than the Meterous warning red
@@ -250,7 +251,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
     | {label: tint(.label_colour // $wc; name),
        bar: (tint(c_bar; rep("█"; $filled))
              + (if $f != null then tint(c_projected; rep("█"; $reach - $filled)) else "" end)
-             + tint(c_dot; rep("░"; 10 - $reach))),
+             + tint(c_empty; rep("░"; 10 - $reach))),
        tail: tint($wc; "\($p)%")};
 
   # The prompt cache: Claude keeps the conversation cached for its TTL (an hour
@@ -268,16 +269,16 @@ exec jq -r --argjson now "$now" --arg word "$word" \
     .prompt_cache as $pc
     | {label: tint(c_text; "Cache")} as $cell
     | if $pc == null or ($pc.warm == true and $pc.expires_at == null) then
-        $cell + {bar: tint(c_dot; rep("░"; 10)), tail: tint(c_text; "…")}
+        $cell + {bar: tint(c_empty; rep("░"; 10)), tail: tint(c_text; "…")}
       else
         ({"1h": 3600, "5m": 300}[$pc.ttl // "1h"] // 3600) as $ttl
         | (if $pc.warm == true then $pc.expires_at else 0 end) as $until
         | ($until - $now) as $left
         | if $left > 0 then
             ([($left / $ttl * 10 | ceil), 10] | min) as $cells
-            | $cell + {bar: (tint(c_bar; rep("█"; $cells)) + tint(c_dot; rep("░"; 10 - $cells))),
+            | $cell + {bar: (tint(c_bar; rep("█"; $cells)) + tint(c_empty; rep("░"; 10 - $cells))),
                        tail: tint(c_text; "\($left / 60 | ceil)m")}
-          else $cell + {bar: tint(c_dot; rep("░"; 10)), tail: tint(c_text; "0%")} end
+          else $cell + {bar: tint(c_empty; rep("░"; 10)), tail: tint(c_text; "0%")} end
       end;
 
   # Refill: the time left before the 5-hour window resets and that limit comes
@@ -292,7 +293,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
     | select($left > 0)
     | (10 - ([($left / 18000 * 10 | ceil), 10] | min) | [., 0] | max) as $cells
     | {label: tint(c_text; "Refill"),
-       bar: (tint(c_bar; rep("█"; $cells)) + tint(c_dot; rep("░"; 10 - $cells))),
+       bar: (tint(c_bar; rep("█"; $cells)) + tint(c_empty; rep("░"; 10 - $cells))),
        # "2hr" rather than "2h": three characters, like the numbers around it.
        tail: tint(c_text; (if $left >= 3600 then "\($left / 3600 | round)hr" else "\($left / 60 | ceil)m" end))};
 
@@ -326,7 +327,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
           ([($used / 10 | ceil), 10] | min) as $cells
           # Always the "!" blue, even nearly full: the bar shows how full it is.
           | {label: tint(c_text; "Context"),
-             bar: (tint(c_bar; rep("█"; $cells)) + tint(c_dot; rep("░"; 10 - $cells))),
+             bar: (tint(c_bar; rep("█"; $cells)) + tint(c_empty; rep("░"; 10 - $cells))),
              tail: tint(c_text; "\($used)%")}
         else empty end),
        # This order puts labels of the same length in each column (context over
