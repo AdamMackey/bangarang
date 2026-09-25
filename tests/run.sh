@@ -177,7 +177,7 @@ check "bar: running out shades to the end"  "${OK}Session ███████�
 check "bar: full at 100%" "${OK}Session ██████████ 100% · Weekly ████░░░░░░ 12%" "$(payload 100 65 12 7000 | row2bars)"
 check "bar: running out early shades the rest" "${OK}Weekly ██████████ 75%" "$(payload - 0 75 9000 | row2bars)"
 check "bar: no pace, solid cells only" "${OK}Fable █░░░░░░░░░ 2%" "$(seedu fresh; payload - 0 - 0 | row2bars; seedu none)"
-check "bar cells: used dark blue, projected light blue, rest slate" "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;114;124;214m█\e\\[0m\e\\[38;2;168;174;230m█\e\\[0m\e\\[38;2;98;106;133m░░░░░░░░\e\\[0m \e\\[38;2;114;124;214m4%')"
+check "bar cells: used dark blue, projected light blue, rest slate" "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;114;124;214m█\e\\[0m\e\\[38;2;168;174;230m█\e\\[0m\e\\[38;2;98;106;133m░░░░░░░░\e\\[0m \e\\[38;2;175;135;255m4%')"
 check "bar cells: running out projects in blue"   "yes" "$(payload 60 150 - 0 | raw2 | has $'\e\\[38;2;114;124;214m██████\e\\[0m\e\\[38;2;168;174;230m████\e\\[0m')"
 
 # every bar is blue, whatever the level: warnings live on the words and numbers
@@ -189,7 +189,7 @@ check "number still amber at 83%"      "yes" "$(payload 4 230 83 950 | raw2 | ha
 raw2() { run | sed -n 2p; }; has() { grep -q "$1" && echo yes || echo no; }
 seed ok; seedu fresh
 check "Fable meter with its own pace" "${OK}Session ██░░░░░░░░ 4% · Weekly ████░░░░░░ 12% · Fable █░░░░░░░░░ 2%" "$(payload 4 230 12 7000 | row2bars)"
-check "Fable label and number in the ! blue"  "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;114;124;214mFable\e\\[0m .*\e\\[38;2;114;124;214m2%')"
+check "Fable label and number in GIGA PURPLE"  "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;175;135;255mFable\e\\[0m .*\e\\[38;2;175;135;255m2%')"
 check "Fable without a weekly window: just the number" "${OK}Fable 2%" "$(payload - 0 - 0 | row2)"
 check "Fable no longer purple"      "no" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;5;134mFable')"
 seedu hot
@@ -198,7 +198,7 @@ seedu stale
 check "stale report, refresh under way: quiet" "${OK}$LIM" "$(payload 4 230 12 7000 | row2)"
 touch "$dc/usage-failed"
 check "stale report after a failed refresh: ?" "${OK}$LIM · Fable ?" "$(payload 4 230 12 7000 | row2)"
-check "Fable ? in the blue" "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;114;124;214mFable ?')"
+check "Fable ? in GIGA PURPLE" "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;175;135;255mFable ?')"
 seedu corrupt
 check "corrupt report: quiet"             "${OK}$LIM" "$(payload 4 230 12 7000 | row2)"
 seedu none; touch "$dc/usage-failed"
@@ -218,47 +218,47 @@ seedu none
 seed ok
 raw2() { run | sed -n 2p; }
 has() { grep -q "$1" && echo yes || echo no; }
-B=$'\e\\[38;2;89;136;213m'; P=$'\e\\[38;5;134m'; U=$'\e\\[38;2;114;124;214m'; A=$'\e\\[38;2;224;165;52m'; R=$'\e\\[38;2;229;103;91m'
-check "blue number below 70"         "yes" "$(payload 4 230 12 7000 | raw2 | has "${U}4%")"
+B=$'\e\\[38;2;89;136;213m'; P=$'\e\\[38;5;134m'; U=$'\e\\[38;2;114;124;214m'; G=$'\e\\[38;2;175;135;255m'; A=$'\e\\[38;2;224;165;52m'; R=$'\e\\[38;2;229;103;91m'
+check "purple number below 70"         "yes" "$(payload 4 230 12 7000 | raw2 | has "${G}4%")"
 check "amber number from 70"         "yes" "$(payload 4 230 83 950 | raw2 | has "${A}83%")"
 check "red number from 90"           "yes" "$(payload 95 42 12 7000 | raw2 | has "${R}95%")"
-check "meter label in the ! blue"   "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;114;124;214mSession\e\\[0m')"
+check "meter label in GIGA PURPLE"   "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;175;135;255mSession\e\\[0m')"
 check "no purple on session or weekly" "no" "$(payload 4 230 12 7000 | raw2 | has "${P}Session\|${P}Weekly\|${P}4%\|${P}12%")"
 check "amber label at 83%"      "yes" "$(payload 4 230 83 950 | raw2 | has "${A}Weekly")"
 check "projected blue cells at a 90% landing" "yes" "$(payload 45 150 - 0 | raw2 | has $'\e\\[38;2;168;174;230m████')"
 check "slate dots between pieces"    "yes" "$(payload 4 230 12 7000 | raw2 | has $'\e\\[38;2;98;106;133m · \e\\[0m')"
 row1() { run | sed -n 1p; }
-check "context stays blue at 75%"   "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":75,"context_window_size":1000000}}' | row1 | has "${U}75%")"
-check "context stays blue at 95%"    "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":95,"context_window_size":1000000}}' | row1 | has "${U}Context"$'\e\\[0m'" .*${U}95%")"
-check "context blue below 70"          "yes" "$(row1 < "$here/base.json" | has "${U}7%")"
-check "refill words blue"             "yes" "$(payload 4 230 12 7000 | row1 | has "${U}Refill")"
+check "context stays purple at 75%"   "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":75,"context_window_size":1000000}}' | row1 | has "${G}75%")"
+check "context stays purple at 95%"    "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":95,"context_window_size":1000000}}' | row1 | has "${G}Context"$'\e\\[0m'" .*${G}95%")"
+check "context purple below 70"          "yes" "$(row1 < "$here/base.json" | has "${G}7%")"
+check "refill words purple"             "yes" "$(payload 4 230 12 7000 | row1 | has "${G}Refill")"
 check "model purple for Opus too"       "yes" "$(raw2 < "$here/base.json" | has $'\e\\[1;38;2;175;135;255mOpus 5')"
-check "context word blue"        "yes" "$(row1 < "$here/base.json" | has $'\e\\[38;2;114;124;214mContext\e\\[0m')"
+check "context word purple"        "yes" "$(row1 < "$here/base.json" | has $'\e\\[38;2;175;135;255mContext\e\\[0m')"
 check "model and (1M) purple on Sonnet too" "yes" "$(echo '{"model":{"display_name":"Sonnet 5"},"context_window":{"context_window_size":1000000}}' | raw2 | has $'\e\\[1;38;2;175;135;255mSonnet 5\e\\[0m \e\\[38;2;175;135;255m(1M)')"
 check "XHigh Effort purple, not bold, on Haiku" "yes" "$(echo '{"model":{"display_name":"Haiku 4.5"},"effort":{"level":"xhigh"}}' | raw2 | has $'\e\\[38;2;175;135;255mXHigh Effort')"
 check "context bar: 43% is 4 cells" "Context █████░░░░░ 43%" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":43,"context_window_size":1000000}}' | row1 | plain | grep -o 'Context [█░]* [0-9]*%')"
-check "context bar cells: used periwinkle, rest slate" "yes" "$(row1 < "$here/base.json" | has $'\e\\[38;2;114;124;214m█\e\\[0m\e\\[38;2;98;106;133m░░░░░░░░░\e\\[0m \e\\[38;2;114;124;214m7%')"
+check "context bar cells: used periwinkle, rest slate" "yes" "$(row1 < "$here/base.json" | has $'\e\\[38;2;114;124;214m█\e\\[0m\e\\[38;2;98;106;133m░░░░░░░░░\e\\[0m \e\\[38;2;175;135;255m7%')"
 check "Max Effort in GIGA PURPLE, bold, even on Opus"  "yes" "$(raw2 < "$here/base.json" | has $'\e\\[1;38;2;175;135;255mMax Effort\e\\[0m')"
 # the prompt cache on row 1: time left as a bar, words always the "!" blue, 0% when lapsed
 pc() { jq -c --argjson now "$now" --arg w "$1" --arg ttl "$2" --arg left "$3" '.prompt_cache = {warm: ($w == "true"), ttl: $ttl, expires_at: (if $left == "null" then null else $now + ($left|tonumber) end)}' "$here/base.json"; }
 C=$'\e\\[38;2;128;175;177m'
 check "cache: 58m left is a full cyan bar"   "✓ Claude operational · Context █░░░░░░░░░ 7% · Cache ██████████ 58m" "$(pc true 1h 3480 | row1 | plain | nophrase1)"
 check "cache: 30m left is half a bar"        "Cache █████░░░░░ 30m" "$(pc true 1h 1800 | row1 | plain | grep -o 'Cache [█░]* [0-9]*m')"
-check "cache: under 10m stays blue"         "yes" "$(pc true 1h 480 | row1 | has "${U}Cache")"
+check "cache: under 10m stays purple"         "yes" "$(pc true 1h 480 | row1 | has "${G}Cache")"
 check "cache: never amber"                   "no" "$(pc true 1h 480 | row1 | has "${A}")"
 check "cache: 8m left shows 2 cells"         "Cache ██░░░░░░░░ 8m" "$(pc true 1h 480 | row1 | plain | grep -o 'Cache [█░]* [0-9]*m')"
-check "cache: warm label is blue"            "yes" "$(pc true 1h 3480 | row1 | has "${U}Cache")"
+check "cache: warm label is purple"            "yes" "$(pc true 1h 3480 | row1 | has "${G}Cache")"
 check "cache: 0% when not warm"              "Cache ░░░░░░░░░░ 0%" "$(pc false 1h 3000 | row1 | plain | grep -o 'Cache [░]* *0%')"
 check "cache: 0% once the expiry passes"     "Cache ░░░░░░░░░░ 0%" "$(pc true 1h -60 | row1 | plain | grep -o 'Cache [░]* *0%')"
-check "cache: 0% is blue"                    "yes" "$(pc false 1h 0 | row1 | has "${U}0%")"
+check "cache: 0% is purple"                    "yes" "$(pc false 1h 0 | row1 | has "${G}0%")"
 check "cache: no cold wording left"          "0" "$(pc false 1h 0 | row1 | plain | grep -c cold)"
 check "cache: a 5-minute cache scales"       "Cache ████████░░ 4m" "$(pc true 5m 240 | row1 | plain | grep -o 'Cache [█░]* [0-9]*m')"
 check "cache: warm with no expiry waits"    "Cache ░░░░░░░░░░ …" "$(pc true 1h null | row1 | plain | grep -o 'Cache [░]* …')"
 check "cache: always there, waiting before the first reply" "Cache ░░░░░░░░░░ …" "$(row1 < "$here/base.json" | plain | grep -o 'Cache [░]* …')"
-check "cache: the wait is in the blue, the bar slate" "yes" "$(row1 < "$here/base.json" | has $'\e\\[38;2;114;124;214mCache\e\\[0m .*\e\\[38;2;98;106;133m░░░░░░░░░░\e\\[0m *\e\\[38;2;114;124;214m…')"
+check "cache: the wait is in GIGA PURPLE, the bar slate" "yes" "$(row1 < "$here/base.json" | has $'\e\\[38;2;175;135;255mCache\e\\[0m .*\e\\[38;2;98;106;133m░░░░░░░░░░\e\\[0m *\e\\[38;2;175;135;255m…')"
 check "cache sits after context"  "yes" "$(pc true 1h 3480 | row1 | plain | grep -q '7% · Cache ██████████ 58m$' && echo yes || echo no)"
 check "context bar blue at 75%"        "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":75,"context_window_size":1000000}}' | row1 | has "${U}████████"$'\e\\[0m')"
-check "cache bar and words blue"   "yes" "$(pc true 1h 480 | row1 | has "${U}Cache"$'\e\\[0m'" *${U}██")"
+check "cache bar blue, words purple"   "yes" "$(pc true 1h 480 | row1 | has "${G}Cache"$'\e\\[0m'" *${U}██")"
 # the two rows line up as a table: every row-2 dot sits under a row-1 dot, and the bars start together
 align() { python3 -c '
 import sys,re

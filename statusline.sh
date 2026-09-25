@@ -191,15 +191,14 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   def c_cost:   c_ok;                          # what the session has cost, in the same sage (defined after it: jq reads top down)
   def c_plan:   "\u001b[38;2;232;142;144m";   # pale rose: the plan, pinker and paler than the Meterous warning red
   def dot: tint(c_dot; " · ");
-  # Meter words (labels and numbers) are the periwinkle blue of the "!" in
-  # BANGARANG!, the same blue as the bars, so the purple model and effort stand
-  # out again; the Fable meter too (Adam: "the Fable usage txt should be blue
-  # too"). The limits turn the Meterous amber from 70% and red from 90%;
-  # context and cache never do.
+  # Meter words (labels and numbers) are GIGA PURPLE, the violet of the model
+  # name and effort (Adam: "change all the progress bar text and percentages
+  # to GIGA PURPLE"); the bars stay blue. The Fable meter too. The limits turn
+  # the Meterous amber from 70% and red from 90%; context and cache never do.
   def amber: "\u001b[38;2;224;165;52m";
   def red:   "\u001b[38;2;229;103;91m";
   def purple: "\u001b[38;5;134m";
-  def c_text: "\u001b[38;2;114;124;214m";
+  def c_text: "\u001b[38;2;175;135;255m";
   def wlevel($base): if . >= 90 then red elif . >= 70 then amber else $base end;
   # Claude status problems in the Pulseous dark palette, bold at worst.
   def tone: {info: "\u001b[38;2;77;155;232m", warn: "\u001b[38;2;251;178;64m", bad: "\u001b[38;2;238;122;80m",
