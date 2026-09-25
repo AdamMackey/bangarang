@@ -171,9 +171,12 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   --argjson checked "$(mtime "$cache/status-checked" 2>/dev/null || echo 0)" \
   --arg status "$(cat "$cache/status.json" 2>/dev/null)" \
   --arg failed "$([ -e "$cache/status-failed" ] && echo 1)" '
-  # The model name, "(1M)" and the effort are Fable purple (256-colour 134)
-  # whatever the model: hotter than the per-model colours (Opus clay and so on).
-  def hue: "134";
+  # The model name, "(1M)" and the effort are GIGA PURPLE whatever the model:
+  # the violet Claude Code gives "accept edits on" (its dark theme autoAccept,
+  # rgb 175 135 255), bluer than the 256-colour 134 they had before (Adam:
+  # "the model name and effort color should be bluer"). hue is the colour part
+  # of the escape code.
+  def hue: "38;2;175;135;255";
   def size: if . >= 1000000 then "\(. / 1000000 | floor)M" elif . >= 1000 then "\(. / 1000 | floor)k" else tostring end;
   def dollars: (. * 100 | round) as $c | "$\($c / 100 | floor).\($c % 100 | tostring | if length < 2 then "0" + . else . end)";
   # Every piece has a colour: Claude Code draws uncoloured text in a faint grey
@@ -292,13 +295,13 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   def model_pieces:
     (.model.display_name // .model.id // "unknown model") as $name
     | ($name | hue) as $c
-    | (if $c == "" then c_words else "\u001b[38;5;\($c)m" end) as $mc
-    | ("\u001b[1\(if $c == "" then "" else ";38;5;\($c)" end)m\($name)\u001b[0m"
+    | (if $c == "" then c_words else "\u001b[\($c)m" end) as $mc
+    | ("\u001b[1\(if $c == "" then "" else ";\($c)" end)m\($name)\u001b[0m"
          + (.context_window.context_window_size | if . then " " + tint($mc; "(\(size))") else "" end)),
       # "Effort" spelled out, so "Max Effort" never reads as the Max plan.
       # Effort in the model purple, bold when it is max.
       (if .effort.level then tint(
-         (if $c == "" then c_words else "\u001b[\(if .effort.level == "max" then "1;" else "" end)38;5;\($c)m" end);
+         (if $c == "" then c_words else "\u001b[\(if .effort.level == "max" then "1;" else "" end)\($c)m" end);
          (.effort.level | if . == "xhigh" then "XHigh" else (.[:1] | ascii_upcase) + .[1:] end) + " Effort") else empty end),
       (if .fast_mode == true then tint(c_fast; "fast") else empty end);
 
