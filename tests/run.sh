@@ -108,7 +108,9 @@ nobar() { sed -E 's/[██░]{10} //g'; }
 # Row 1 is the phrase and the Claude status, then Context, Refill and Cache; row 2 the model, effort,
 # fast mode, plan and cost, then Session, Weekly and Fable. Most checks read "status · limits"
 # together (the status from row 1, the limits from row 2), the way one row used to show them.
-nophrase1() { sed -E 's/^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)*( · )?//'; }
+nophrase1() { sed -E 's/^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)*( · | )?//'; }
+# the phrase alone: everything before the status mark (or the dot)
+phrase1() { sed -E 's/ (· |[✓✕?] ).*$//'; }
 statuslimits() { local o st li; o=$(cat)
   st=$(printf '%s\n' "$o" | sed -n 1p | nophrase1 | sed -E 's/ · (Context|Refill|Cache) .*$//; s/ +$//')
   li=$(printf '%s\n' "$o" | sed -n 2p | perl -ne 'print $1 if /^.*? · ((?:Session|Weekly|Fable)[ ?].*)$/')
@@ -279,10 +281,10 @@ check "no limits: row 2 is the model, effort and cost" "Opus 5 (1M) · Max Effor
 check "no limits: row 1 still whole"      "✓ Claude operational · Context █░░░░░░░░░ 7% · Cache ██████████ 58m" "$(payload - 0 - 0 | jq -c --argjson now "$now" '.prompt_cache = {warm: true, ttl: "1h", expires_at: ($now + 3480)}' | run | sed -n 1p | plain | nophrase1)"
 # the phrase, top left of row 1: sized to the room row 2 leaves, gradient and bold, only while all is clear.
 # With the plan (Max 20x) and a $1234.56 cost after a model name of n letters (no effort), row 2's
-# head is n + 21 wide; row 1 is the phrase + " · ✓ Claude operational" (23), so the room is n - 2.
-# ph r gives the phrase for a room of r.
+# head is n + 21 wide; row 1 is the phrase + " ✓ Claude operational" (21), so the room is n (and the
+# ✓ stands over the dot after the model name). ph r gives the phrase for a room of r.
 acct claude_max '"default_claude_max_20x"'; aged 2>/dev/null
-ph() { jq -nc --arg n "$(printf "%$(($1 + 2))s" | tr ' ' x)" '{model: {display_name: $n}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | plain | sed -E 's/ · .*$//'; }
+ph() { jq -nc --arg n "$(printf "%$1s" | tr ' ' x)" '{model: {display_name: $n}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | plain | phrase1; }
 check "phrase: 9"                  "BANGARANG"                        "$(ph 9)"
 check "phrase: 10, an exclamation" "BANGARANG!"                       "$(ph 10)"
 check "phrase: 11"                 "BANGARANG!!"                      "$(ph 11)"
@@ -301,7 +303,7 @@ check "phrase: 34"                 "♥ ♥ »»» B A N G A R A N G! ««« ♥
 check "phrase: never under 9, row 2 makes room" "BANGARANG BANGARANG" "$(ph 8) $(ph 3)"
 check "phrase: fills its room at every width" "yes" "$(for r in $(seq 9 40); do ph $r | python3 -c "import sys; print('yes' if len(sys.stdin.read().rstrip('\\n')) == $r else 'no at $r')"; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
 # your own word: --phrase WORD, --phrase=WORD or BANGARANG_PHRASE=WORD
-phw() { jq -nc --arg n "$(printf "%$(($2 + 2))s" | tr ' ' x)" '{model: {display_name: $n}, cost: {total_cost_usd: 1234.56}}' | HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" bash "$new" --usage --phrase "$1" | unbox | sed -n 1p | plain | sed -E 's/ · .*$//'; }
+phw() { jq -nc --arg n "$(printf "%$2s" | tr ' ' x)" '{model: {display_name: $n}, cost: {total_cost_usd: 1234.56}}' | HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" bash "$new" --usage --phrase "$1" | unbox | sed -n 1p | plain | phrase1; }
 check "phrase: your own word with --phrase"     "»» L F G ««" "$(phw LFG 11)"
 check "phrase: --phrase=WORD works too"         "yes" "$(full | HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" bash "$new" --usage --phrase=VIBES | unbox | sed -n 1p | plain | grep -q 'V I B E S' && echo yes || echo no)"
 check "phrase: so does BANGARANG_PHRASE"        "yes" "$(full | HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="$now" BANGARANG_PHRASE=VIBES bash "$new" --usage | unbox | sed -n 1p | plain | grep -q 'V I B E S' && echo yes || echo no)"
@@ -309,14 +311,31 @@ check "phrase: your word fills its room at every width" "yes" "$(for r in $(seq 
 check "phrase: your word never leaves either"   "WOOHOO" "$(phw WOOHOO 2)"
 check "phrase: an empty --phrase keeps BANGARANG" "yes" "$(phw '' 17 | grep -q 'B A N G A R A N G' && echo yes || echo no)"
 check "phrase: gradient starts clay, bold"  "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'^\e\\[1;38;2;215;135;95m♥')"
-check "phrase: gradient ends blue, bold"    "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[1;38;2;89;136;213m♥\e\\[0m\e\\[38;2;98;106;133m · ')"
-check "phrase: the status follows it"  "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · ✓ Claude operational · Context ' && echo yes || echo no)"
+check "phrase: gradient ends blue, bold"    "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[1;38;2;89;136;213m♥\e\\[0m \e\\[38;2;135;169;141m✓')"
+check "phrase: the status follows it"  "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* ✓ Claude operational · Context ' && echo yes || echo no)"
+# The status mark stands right over a dot in row 2 (Adam: "line up with the Max x20 dot"): for
+# Opus 5.5 (1M) at max effort on Max 20x, the dot before the plan once a session passes $10, with
+# row 2 padding out what is left (two spaces at most). Under that, the phrase fills as before.
+adam() { full | jq -c --argjson c "$1" '.model.display_name = "Opus 5.5" | .cost.total_cost_usd = $c'; }
+over() { run | sed $'s/\e\\[[0-9;]*m//g' | python3 -c '
+import sys
+r = [l.rstrip("\n") for l in sys.stdin][:2]
+m = next((i for i, ch in enumerate(r[0]) if ch in "✓✕?"), -1)
+d = r[1].find("Max 20x") - 2
+print("over" if m == d else "off by %d" % (m - d))'; }
+check "mark: over the dot before Max 20x from \$10" "over over over" "$(for c in 45.67 112.33 1234.56; do adam $c | over; done | tr '\n' ' ' | sed 's/ $//')"
+check "mark: row 2 pads out two spaces at most" "3 2 1" "$(for c in 45.67 112.33 1234.56; do adam $c | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print length($1) if /\$[0-9.]+( +)· Session/'; echo; done | tr '\n' ' ' | sed 's/ $//')"
+check "mark: the rows stay a table"     "aligned aligned aligned" "$(for c in 45.67 112.33 1234.56; do adam $c | run | align; done | tr '\n' ' ' | sed 's/ $//')"
+check "mark: under \$10 the phrase fills instead" "off by -3 aligned" "$(adam 5.43 | over) $(adam 5.43 | run | align)"
+seed corrupt
+check "mark: none while checking, so the dot stays" "yes" "$(full | run | sed -n 1p | plain | grep -qE '(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · checking Claude status… · Context ' && echo yes || echo no)"
+seed ok
 rm -f "$dh/.claude.json" "$dc"/plan*
 check "phrase: the plan and cost sit on row 2" "0 0" "$(full | run | sed -n 1p | plain | grep -c '\$0.98') $(acct claude_max '"default_claude_max_20x"'; full | run | sed -n 1p | plain | grep -c 'Max 20x')"
 rm -f "$dh/.claude.json" "$dc"/plan*
 seed "warn:Claude Code degraded"
 check "phrase: stays during an outage" "1" "$(full | run | sed -n 1p | plain | grep -c 'BANG\|B A N')"
-check "outage: BANGARANG, then the outage" "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · ✕ Claude Outage · Context ' && echo yes || echo no)"
+check "outage: BANGARANG, then the outage" "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* ✕ Claude Outage · Context ' && echo yes || echo no)"
 check "outage: the rows stay lined up" "aligned" "$(full | run | align)"
 seed ok
 # the refill timer: the session window's time left
@@ -375,7 +394,7 @@ check "box: the bottom rule in the same colours" "same" "$(o=$(full | runfull); 
 check "box: one colour reset, at the end of a rule" "1" "$(full | top | grep -o $'\e\\[0m' | wc -l | tr -d ' ')"
 seed "warn:Claude Code degraded, Claude API partial outage, claude.ai major outage +1 more"
 check "box: still square when the rows are unaligned" "yes unaligned" "$(echo '{"model":{"id":"x"}}' | runfull | widths | awk '{print ($1 == $2 && $2 == $3 && $3 == $4) ? "yes" : "no: " $0}') $(echo '{"model":{"id":"x"}}' | run | widths | awk '{print ($1 != $2) ? "unaligned" : "aligned?"}')"
-check "box: BANGARANG shows when unaligned too" "» B A N G A R A N G «" "$(echo '{"model":{"id":"x"}}' | run | sed -n 1p | plain | sed -E 's/ · .*$//')"
+check "box: BANGARANG shows when unaligned too" "» B A N G A R A N G «" "$(echo '{"model":{"id":"x"}}' | run | sed -n 1p | plain | phrase1)"
 seed ok
 check "box: two rows in, four lines out, whatever the payload" "4" "$(echo '{}' | runfull | awk 'END {print NR}')"
 seedu none

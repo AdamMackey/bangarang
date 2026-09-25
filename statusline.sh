@@ -188,13 +188,13 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   def c_dot:    "\u001b[38;2;98;106;133m";    # slate: the dots between pieces
   def c_fast:   "\u001b[38;2;240;195;90m";    # gold: fast mode
   def c_ok:     "\u001b[38;2;135;169;141m";   # calm sage: all clear, washed out and a little warm, easy on the eyes
+  def c_plan:   "\u001b[38;2;232;142;144m";   # pale rose: the plan, pinker and paler than the Meterous warning red
   # What the session has cost is in the pale rose of the plan, so the plan and its
   # spend read as one pair (Adam, 2026-09-25: "the dollar value should be same
   # colour as Max x20"). It was GIGA ORANGE before that, and sage before that.
   # Defined after c_plan because jq only sees what is above it. No apostrophes in
   # these comments: the whole jq program sits inside single quotes.
   def c_cost:   c_plan;
-  def c_plan:   "\u001b[38;2;232;142;144m";   # pale rose: the plan, pinker and paler than the Meterous warning red
   def dot: tint(c_dot; " · ");
   # Meter words (labels and numbers) are GIGA BLUE, the periwinkle of the "!"
   # in BANGARANG!, and the bars GIGA PURPLE (Adam, 2026-09-25: "revert to GIGA
@@ -314,8 +314,9 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   # Row 1 as table cells (Adam: "move BANGARANG to the top left", then "swap
   # Claude operational with Max 20x and $"): the head is the phrase (flex: it
   # fills the room the row 2 head leaves, and never leaves: "Bangarang can
-  # never leave") and the Claude status; then the context meter, the refill
-  # timer and the cache meter.
+  # never leave") and the Claude status, whose mark stands where a dot would,
+  # over a dot of row 2 when the phrase can reach it (see layout); then the
+  # context meter, the refill timer and the cache meter.
   def cells_session($st):
     .context_window.used_percentage as $used
     | [{label: "", bar: "", flex: true, tail: $st.text},
@@ -438,14 +439,19 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   # right-aligned (when they differ by 6 or less), so both rows end on the same
   # column. The flex head fills its spare room exactly with the phrase, and
   # always has room for at least the shortest one. A head with no phrase that
-  # would need more than 24 spaces of padding (row 2 with next to nothing in
+  # would need more than 22 spaces of padding (row 2 with next to nothing in
   # it) leaves the rows unaligned instead, rather than open a wide gap; the
   # phrase still shows there, at a set size.
-  def visible: gsub("\u001b\\[[0-9;]*m"; "") | length;
+  def bare: gsub("\u001b\\[[0-9;]*m"; "");
+  def visible: bare | length;
   def is_meter: .bar != "";
-  def cell_width($lw):
+  # The status mark (✓, ✕ or ?) stands where the dot after the phrase would be,
+  # a bullet for the status (Adam: "move the checkmark"); a status without one
+  # ("checking Claude status…") keeps the dot. flex_sep is what joins them.
+  def flex_sep: if .tail | bare | test("^[✓✕?] ") then " " else dot end;
+  def cell_width($lw; $pw):
     if is_meter then $lw + 12 + (.tail | visible)
-    elif .flex == true then (.tail | visible) + ($word | length) + (if .tail == "" then 0 else 3 end)
+    elif .flex == true then (.tail | visible) + $pw + (if .tail == "" then 0 else flex_sep | visible end)
     else (.tail | visible) end;
   def render_cell($d):
     (if is_meter then
@@ -453,25 +459,43 @@ exec jq -r --argjson now "$now" --arg word "$word" \
        | (if $d.last and ($d.tw - $t) <= 6 then rep(" "; $d.tw - $t) else "" end) as $lead
        | .label + rep(" "; $d.lw - (.label | visible)) + " " + .bar + " " + $lead + .tail
      elif .flex == true then
-       phrase(if .tail == "" then $d.w else $d.w - (.tail | visible) - 3 end) as $p
-       | if $p == null then .tail elif .tail == "" then ($p | rainbow) else ($p | rainbow) + dot + .tail end
+       flex_sep as $sep
+       | phrase(if .tail == "" then $d.w else $d.w - (.tail | visible) - ($sep | visible) end) as $p
+       | if $p == null then .tail elif .tail == "" then ($p | rainbow) else ($p | rainbow) + $sep + .tail end
      else .tail end)
     | . + rep(" "; $d.w - visible);
   def layout:
     . as $rows
     | ([$rows[] | length] | max) as $n
+    # The phrase reaches to a dot in the head of row 2 when it can, so the
+    # status mark stands right over that dot (Adam: "line up with the Max x20
+    # dot"; for him the dot before Max 20x, once a session passes $10): the dot
+    # that leaves row 2 the least to pad, two spaces at most. Row 1 never pads,
+    # since the phrase can fill any room. $pw is the room the phrase keeps: that
+    # reach, else the shortest phrase, which then fills what row 2 leaves.
+    | [$rows[] | .[0] | select(. != null and .flex != true) | .tail | bare] as $heads
+    | ([$heads[] | length] | max // 0) as $hw
+    | ([$rows[] | .[0] | select(. != null and .flex == true)] | first) as $f
+    | (if $f == null or $f.tail == "" then null
+       else (($f | flex_sep | visible) + ($f.tail | visible)) as $rest
+         | [$heads[] | explode | to_entries[] | select(.value == 183) | .key - 1
+            | select(. >= ($word | length)) | {p: ., slack: (. + $rest - $hw)}
+            | select(.slack >= 0 and .slack <= 2)]
+         | min_by(.slack) | .p
+       end) as $reach
+    | ($reach // ($word | length)) as $pw
     | [range(0; $n) as $i
        | [$rows[] | .[$i] | select(. != null)] as $col
        | ([$col[] | select(is_meter) | .label | visible] | max // 0) as $lw
        | {lw: $lw,
           tw: ([$col[] | select(is_meter) | .tail | visible] | max // 0),
           last: ($i == $n - 1),
-          w: ([$col[] | cell_width($lw)] | max)}] as $dims
+          w: ([$col[] | cell_width($lw; $pw)] | max)}] as $dims
     # (a flex head counts with the room it keeps for the phrase, as in cell_width)
-    | ([$rows[] | .[0] | select(. != null) | cell_width(0)] | max // 0) as $head
-    | if any($rows[] | .[0] | select(. != null and .flex != true); $head - (.tail | visible) > 24) then
+    | ([$rows[] | .[0] | select(. != null) | cell_width(0; $pw)] | max // 0) as $head
+    | if any($rows[] | .[0] | select(. != null and .flex != true); $head - (.tail | visible) > 22) then
         [$rows[] | [.[] | if is_meter then .label + " " + .bar + " " + .tail
-                          elif .flex == true then ("» " + ($word | explode | map([.] | implode) | join(" ")) + " «" | rainbow) + (if .tail == "" then "" else dot + .tail end)
+                          elif .flex == true then ("» " + ($word | explode | map([.] | implode) | join(" ")) + " «" | rainbow) + (if .tail == "" then "" else flex_sep + .tail end)
                           else .tail end] | join(dot)]
       else
         [$rows[] | . as $row | [range(0; length) as $i | $row[$i] | render_cell($dims[$i])] | join(dot) | sub(" +$"; "")]
