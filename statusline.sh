@@ -303,12 +303,12 @@ exec jq -r --argjson now "$now" --arg word "$word" \
     (.model.display_name // .model.id // "unknown model") as $name
     | ($name | hue) as $c
     | (if $c == "" then c_words else "\u001b[\($c)m" end) as $mc
-    | ("\u001b[1\(if $c == "" then "" else ";\($c)" end)m\($name)\u001b[0m"
+    | (tint($mc; $name)
          + (.context_window.context_window_size | if . then " " + tint($mc; "(\(size))") else "" end)),
       # "Effort" spelled out, so "Max Effort" never reads as the Max plan.
-      # Effort in the model purple, bold when it is max.
-      (if .effort.level then tint(
-         (if $c == "" then c_words else "\u001b[\(if .effort.level == "max" then "1;" else "" end)\($c)m" end);
+      # Effort in the model purple. Neither it nor the model name is bold
+      # (Adam, 2026-09-25, to try it: "not bolding the model effort words").
+      (if .effort.level then tint($mc;
          (.effort.level | if . == "xhigh" then "XHigh" else (.[:1] | ascii_upcase) + .[1:] end) + " Effort") else empty end),
       (if .fast_mode == true then tint(c_fast; "fast") else empty end);
 

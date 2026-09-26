@@ -234,13 +234,13 @@ check "context stays blue at 75%"   "yes" "$(echo '{"model":{"display_name":"Opu
 check "context stays blue at 95%"    "yes" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":95,"context_window_size":1000000}}' | row1 | has "${U}Context"$'\e\\[0m'" .*${U}95%")"
 check "context blue below 70"          "yes" "$(row1 < "$here/base.json" | has "${U}7%")"
 check "refill words blue"             "yes" "$(payload 4 230 12 7000 | row1 | has "${U}Refill")"
-check "model purple for Opus too"       "yes" "$(raw2 < "$here/base.json" | has $'\e\\[1;38;2;175;135;255mOpus 5')"
+check "model purple for Opus too, not bold" "yes" "$(raw2 < "$here/base.json" | has $'\e\\[38;2;175;135;255mOpus 5')"
 check "context word blue"        "yes" "$(row1 < "$here/base.json" | has $'\e\\[38;2;114;124;214mContext\e\\[0m')"
-check "model and (1M) purple on Sonnet too" "yes" "$(echo '{"model":{"display_name":"Sonnet 5"},"context_window":{"context_window_size":1000000}}' | raw2 | has $'\e\\[1;38;2;175;135;255mSonnet 5\e\\[0m \e\\[38;2;175;135;255m(1M)')"
+check "model and (1M) purple on Sonnet too" "yes" "$(echo '{"model":{"display_name":"Sonnet 5"},"context_window":{"context_window_size":1000000}}' | raw2 | has $'\e\\[38;2;175;135;255mSonnet 5\e\\[0m \e\\[38;2;175;135;255m(1M)')"
 check "XHigh Effort purple, not bold, on Haiku" "yes" "$(echo '{"model":{"display_name":"Haiku 4.5"},"effort":{"level":"xhigh"}}' | raw2 | has $'\e\\[38;2;175;135;255mXHigh Effort')"
 check "context bar: 43% is 4 cells" "Context █████░░░░░ 43%" "$(echo '{"model":{"display_name":"Opus 5.5"},"context_window":{"used_percentage":43,"context_window_size":1000000}}' | row1 | plain | grep -o 'Context [█░]* [0-9]*%')"
 check "context bar cells: used purple, rest slate" "yes" "$(row1 < "$here/base.json" | has $'\e\\[38;2;175;135;255m█\e\\[0m\e\\[38;2;98;106;133m░░░░░░░░░\e\\[0m \e\\[38;2;114;124;214m7%')"
-check "Max Effort in GIGA PURPLE, bold, even on Opus"  "yes" "$(raw2 < "$here/base.json" | has $'\e\\[1;38;2;175;135;255mMax Effort\e\\[0m')"
+check "Max Effort in GIGA PURPLE, not bold"  "yes" "$(raw2 < "$here/base.json" | has $'\e\\[38;2;175;135;255mMax Effort\e\\[0m')"
 # the prompt cache on row 1: time left as a bar, words always the "!" blue, 0% when lapsed
 pc() { jq -c --argjson now "$now" --arg w "$1" --arg ttl "$2" --arg left "$3" '.prompt_cache = {warm: ($w == "true"), ttl: $ttl, expires_at: (if $left == "null" then null else $now + ($left|tonumber) end)}' "$here/base.json"; }
 C=$'\e\\[38;2;128;175;177m'
