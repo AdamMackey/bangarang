@@ -389,11 +389,12 @@ exec jq -r --argjson now "$now" --arg word "$word" \
        scoped_meters];
 
   # The phrase, top left of row 1: BANGARANG, the word Adam shouted when the
-  # bars first landed, or your own ($word, from --phrase). Bold, in a clay, rose,
-  # purple and blue gradient (the palette of the whole line). Built to fill its
-  # room exactly, so the spacing around it stays even: letter-spaced once there
-  # is room for that, an exclamation mark for an odd leftover, then chevrons, up
-  # to four a side, then hearts outside them, spaced like the letters
+  # bars first landed, or your own ($word, from --phrase). In a clay, rose,
+  # purple and blue gradient (the palette of the whole line), not bold since
+  # the line went to one weight (Adam: "try this on BANGARANG too"). Built to
+  # fill its room exactly, so the spacing around it stays even: letter-spaced
+  # once there is room for that, an exclamation mark for an odd leftover, then
+  # chevrons, up to four a side, then hearts outside them, spaced like the letters
   # ("♥ ♥ »»» B A N G A R A N G ««« ♥ ♥"), as far as the room goes. Three
   # chevrons or four, whichever makes the hearts fit.
   def phrase($w):
@@ -421,7 +422,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
     | [range(0; $n) as $i | .[$i:$i + 1] as $ch
        | if $ch == " " then " "
          else ($i / ([$n - 1, 1] | max) | shade($i / ([$n - 1, 1] | max))) as $c
-           | "\u001b[1;38;2;\($c[0]);\($c[1]);\($c[2])m" + $ch + "\u001b[0m" end]
+           | "\u001b[38;2;\($c[0]);\($c[1]);\($c[2])m" + $ch + "\u001b[0m" end]
     | join("");
 
   # The box round the rows is drawn in a soft rainbow from red round to violet,

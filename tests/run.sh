@@ -279,7 +279,7 @@ seedu none
 check "rows line up with an amber meter" "aligned" "$(payload 4 230 83 950 | jq -c --argjson now "$now" '.prompt_cache = {warm: true, ttl: "1h", expires_at: ($now + 3480)}' | run | align)"
 check "no limits: row 2 is the model, effort and cost" "Opus 5 (1M) · Max Effort · \$0.98" "$(payload - 0 - 0 | jq -c --argjson now "$now" '.prompt_cache = {warm: true, ttl: "1h", expires_at: ($now + 3480)}' | run | sed -n 2p | plain)"
 check "no limits: row 1 still whole"      "Claude operational · Context █░░░░░░░░░ 7% · Cache ██████████ 58m" "$(payload - 0 - 0 | jq -c --argjson now "$now" '.prompt_cache = {warm: true, ttl: "1h", expires_at: ($now + 3480)}' | run | sed -n 1p | plain | nophrase1)"
-# the phrase, top left of row 1: sized to the room row 2 leaves, gradient and bold, only while all is clear.
+# the phrase, top left of row 1: sized to the room row 2 leaves, in a gradient, not bold, only while all is clear.
 # With the plan (Max 20x) and a $1234.56 cost after a model name of n letters (no effort), row 2's
 # head is n + 21 wide; row 1 is the phrase + " · Claude operational" (21), so the room is n (and its
 # dot stands over the dot after the model name). ph r gives the phrase for a room of r.
@@ -310,8 +310,8 @@ check "phrase: so does BANGARANG_PHRASE"        "yes" "$(full | HOME="$dh" PATH=
 check "phrase: your word fills its room at every width" "yes" "$(for r in $(seq 6 40); do phw WOOHOO $r | python3 -c "import sys; print('yes' if len(sys.stdin.read().rstrip('\\n')) == $r else 'no at $r')"; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
 check "phrase: your word never leaves either"   "WOOHOO" "$(phw WOOHOO 2)"
 check "phrase: an empty --phrase keeps BANGARANG" "yes" "$(phw '' 17 | grep -q 'B A N G A R A N G' && echo yes || echo no)"
-check "phrase: gradient starts clay, bold"  "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'^\e\\[1;38;2;215;135;95m♥')"
-check "phrase: gradient ends blue, bold"    "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[1;38;2;89;136;213m♥\e\\[0m\e\\[38;2;175;135;255m · ')"
+check "phrase: gradient starts clay, not bold" "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'^\e\\[38;2;215;135;95m♥')"
+check "phrase: gradient ends blue, not bold" "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[38;2;89;136;213m♥\e\\[0m\e\\[38;2;175;135;255m · ')"
 check "phrase: the status follows it"  "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · Claude operational · Context ' && echo yes || echo no)"
 # The dot (or problem mark) before the status stands right over a dot in row 2 (Adam: "line up
 # with the Max x20 dot", then "replace the check with a dot"): for
