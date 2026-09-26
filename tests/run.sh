@@ -110,7 +110,7 @@ nobar() { sed -E 's/[██░]{10} //g'; }
 # together (the status from row 1, the limits from row 2), the way one row used to show them.
 nophrase1() { sed -E 's/^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)*( · | )?//'; }
 # the phrase alone: everything before the status mark (or the dot)
-phrase1() { sed -E 's/ (· |[✕?] ).*$//'; }
+phrase1() { sed -E 's/ (· |✕ |\? ).*$//'; }   # (no ✕ inside [...]: that needs a UTF-8 locale)
 statuslimits() { local o st li; o=$(cat)
   st=$(printf '%s\n' "$o" | sed -n 1p | nophrase1 | sed -E 's/ · (Context|Refill|Cache) .*$//; s/ +$//')
   li=$(printf '%s\n' "$o" | sed -n 2p | perl -ne 'print $1 if /^.*? · ((?:Session|Weekly|Fable)[ ?].*)$/')
