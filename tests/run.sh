@@ -322,13 +322,14 @@ over() { run | sed $'s/\e\\[[0-9;]*m//g' | python3 -c '
 import sys
 r = [l.rstrip("\n") for l in sys.stdin][:2]
 m = next((i for i, ch in enumerate(r[0]) if ch in "·✕?"), -1)
-d = r[1].find("Max 20x") - 2
+d = r[1].rfind("·", 0, r[1].find("Max 20x"))
 print("over" if m == d else "off by %d" % (m - d))'; }
 check "row 1 dot: over the dot before Max 20x from \$10" "over over over" "$(for c in 45.67 112.33 1234.56; do adam $c | over; done | tr '\n' ' ' | sed 's/ $//')"
-check "row 1 dot: row 2 pads out two spaces at most" "2 1 0" "$(for c in 45.67 112.33 1234.56; do adam $c | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print length($1) + length($2) - 2 if /Max 20x ·( +)\$[0-9.]+( +)· Session/'; echo; done | tr '\n' ' ' | sed 's/ $//')"
-# the cost sits centred in that room (Adam: "make it so the cost is automatically centered in its white
-# space"): spaces before it / after it. An odd one left over goes after.
-check "cost: centred in its room"      "2/2 1/2 1/1" "$(for c in 45.67 112.33 1234.56; do adam $c | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print length($1) . "/" . length($2) if /Max 20x ·( +)\$[0-9.]+( +)· Session/'; echo; done | tr '\n' ' ' | sed 's/ $//')"
+check "row 1 dot: row 2 pads out two spaces at most" "2 1 0" "$(for c in 45.67 112.33 1234.56; do adam $c | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print length($1) + length($4) - 2 if /Effort ·( +)Max 20x( +)·( +)\$[0-9.]+( +)· Session/'; echo; done | tr '\n' ' ' | sed 's/ $//')"
+# the plan and cost sit centred together in that room, their dot a space either side (Adam: "the dot
+# between Max 20x and the cost to always be centered and max x 20 and the cost centered in the leftover
+# white space"): the spaces before Max 20x, around its dot, and after the cost. An odd one goes after.
+check "plan and cost: centred as one"  "2-1-1-2 1-1-1-2 1-1-1-1" "$(for c in 45.67 112.33 1234.56; do adam $c | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print join("-", map { length } $1, $2, $3, $4) if /Effort ·( +)Max 20x( +)·( +)\$[0-9.]+( +)· Session/'; echo; done | tr '\n' ' ' | sed 's/ $//')"
 check "row 1 dot: the rows stay a table" "aligned aligned aligned" "$(for c in 45.67 112.33 1234.56; do adam $c | run | align; done | tr '\n' ' ' | sed 's/ $//')"
 check "row 1 dot: under \$10 the phrase fills instead" "off by -3 aligned" "$(adam 5.43 | over) $(adam 5.43 | run | align)"
 seed corrupt
