@@ -374,10 +374,11 @@ exec jq -r --argjson now "$now" --arg word "$word" \
       else empty end;
 
   # Row 2 as table cells: the model, effort and fast mode, then the plan and
-  # the session cost, then the limits.
+  # the session cost, then the limits. The cost sits centred in any room the
+  # head has left (see render_cell).
   def cells_plan($st):
     # Pace counts early use as a full half hour of a 5-hour window, a full day of a week.
-    [{label: "", bar: "", tail: ([model_pieces,
+    [{label: "", bar: "", centre_last: true, tail: ([model_pieces,
                                   (if $plan != "" then tint(c_plan; $plan) else empty end),
                                   (if (.cost.total_cost_usd // 0) > 0 then tint(c_cost; .cost.total_cost_usd | dollars) else empty end)]
                                  | join(dot))},
@@ -466,6 +467,15 @@ exec jq -r --argjson now "$now" --arg word "$word" \
        flex_sep as $sep
        | phrase(if .tail == "" then $d.w else $d.w - (.tail | visible) - ($sep | visible) end) as $p
        | if $p == null then .tail elif .tail == "" then ($p | rainbow) else ($p | rainbow) + $sep + .tail end
+     elif .centre_last == true then
+       # The last piece (the cost, or the plan before there is one) sits in the
+       # middle of the room left between its dot and the next one (Adam: "make
+       # it so the cost is automatically centered in its white space"). An odd
+       # space left over goes after it, with the rest of the padding below.
+       ($d.w - (.tail | visible)) as $room
+       | (.tail | split(dot)) as $parts
+       | if ($parts | length) < 2 or $room < 2 then .tail
+         else ($parts[:-1] | join(dot)) + dot + rep(" "; ($room / 2 | floor)) + $parts[-1] end
      else .tail end)
     | . + rep(" "; $d.w - visible);
   def layout:
