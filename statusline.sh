@@ -218,7 +218,7 @@ month_spend=$(find "$spend" -name '*.json' -mtime -32 -exec cat {} + 2>/dev/null
 case "$month_spend" in ''|*[!0-9.e+-]*) month_spend=0 ;; esac
 
 exec jq -r --argjson now "$now" --arg word "$word" \
-  --argjson month_spend "$month_spend" --arg month "$month" \
+  --argjson month_spend "$month_spend" \
   --arg plan "$(cat "$cache/plan" 2>/dev/null)" \
   --arg usage "$([ "$usage_on" = 1 ] && cat "$cache/usage.json" 2>/dev/null)" \
   --arg usage_failed "$([ "$usage_on" = 1 ] && [ -e "$cache/usage-failed" ] && echo 1)" \
@@ -234,7 +234,6 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   def size: if . >= 1000000 then "\(. / 1000000 | floor)M" elif . >= 1000 then "\(. / 1000 | floor)k" else tostring end;
   def dollars: (. * 100 | round) as $c | "$\($c / 100 | floor).\($c % 100 | tostring | if length < 2 then "0" + . else . end)";
   def commas: tostring | if length > 3 then (.[:-3] | commas) + "," + .[-3:] else . end;
-  def month_name: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][(.[5:7] | tonumber) - 1];
   # Every piece has a colour: Claude Code draws uncoloured text in a faint grey
   # (measured #565656 on screen), while colours show at full strength. All are
   # exact 24-bit values for this dark terminal, which Claude Code keeps as rgb.
@@ -439,8 +438,9 @@ exec jq -r --argjson now "$now" --arg word "$word" \
                                   (if $plan != "" then tint(c_plan; $plan) else empty end),
                                   (if (.cost.total_cost_usd // 0) > 0 then tint(c_cost; .cost.total_cost_usd | dollars) else empty end),
                                   # The month so far, from the running total, in whole
-                                  # dollars (Adam: "show the monthly spend est in the status line").
-                                  (if $month_spend >= 0.5 then tint(c_cost; "$\($month_spend | round | commas) \($month | month_name)") else empty end)]
+                                  # dollars (Adam: "show the monthly spend est in the status
+                                  # line"), with no month name after it (he asked for it off).
+                                  (if $month_spend >= 0.5 then tint(c_cost; "$\($month_spend | round | commas)") else empty end)]
                                  | join(dot))},
        # "Session", as claude.ai names the 5-hour limit ("Current session").
        # Every bar label starts with a capital, like Fable (Adam asked).
@@ -524,13 +524,16 @@ exec jq -r --argjson now "$now" --arg word "$word" \
        | .label + rep(" "; $d.lw - (.label | visible)) + " " + .bar + " " + $lead + .tail
      elif .flex == true then
        # The phrase takes its reach when there is one (row 1 then pads around
-       # the status, centred, an odd space after), else all the room.
+       # the status, centred, an odd space after), else all the room. A mark
+       # keeps its place over the dot: the padding goes after it.
        flex_sep as $sep
        | (if .tail == "" then $d.w else $d.w - (.tail | visible) - ($sep | visible) end) as $room
        | ($d.reach // $room) as $pw
+       | rep(" "; (($room - $pw) / 2 | floor)) as $lead
        | phrase($pw) as $p
        | if $p == null then .tail elif .tail == "" then ($p | rainbow)
-         else ($p | rainbow) + $sep + rep(" "; (($room - $pw) / 2 | floor)) + .tail end
+         elif $sep == " " then ($p | rainbow) + $sep + (.tail | sub("(?<mk>[✕?] )"; "\(.mk)\($lead)"))
+         else ($p | rainbow) + $sep + $lead + .tail end
      elif .centre_rest == true then
        # What follows the dot that row 1 lines up with (the plan and the cost)
        # sits centred as one in the room left before the next dot, the dot
@@ -551,7 +554,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
     | ([$rows[] | length] | max) as $n
     # The phrase reaches to a dot in the head of row 2 when it can, so the dot
     # (or mark) before the status stands right over it (Adam: "line up with the
-    # Max x20 dot"): the dot that leaves the least padding, two spaces at most,
+    # Max x20 dot"): the dot that leaves the least padding, three spaces at most,
     # in row 2 (after the dot, centred there) or in row 1 (around the status,
     # centred too); row 2 pads on a tie. $pw is the room the phrase keeps: that
     # reach, else the shortest phrase, which then fills what row 2 leaves.
@@ -562,7 +565,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
        else (($f | flex_sep | visible) + ($f.tail | visible)) as $rest
          | [$heads[] | explode | to_entries[] | select(.value == 183) | .key - 1
             | select(. >= ($word | length)) | {p: ., slack: (. + $rest - $hw)}
-            | select(.slack >= -2 and .slack <= 2)]
+            | select(.slack >= -3 and .slack <= 3)]
          | min_by([(if .slack < 0 then -.slack else .slack end), -.slack]) | .p
        end) as $reach
     | ($reach // ($word | length)) as $pw

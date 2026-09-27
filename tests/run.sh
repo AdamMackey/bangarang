@@ -327,13 +327,19 @@ m = next((i for i, ch in enumerate(r[0]) if ch in "·✕?"), -1)
 d = r[1].rfind("·", 0, r[1].find("Max 20x"))
 print("over" if m == d else "off by %d" % (m - d))'; }
 check "row 1 dot: over the dot before Max 20x from \$10" "over over over" "$(for c in 45.67 112.33 1234.56; do adam $c | over; done | tr '\n' ' ' | sed 's/ $//')"
-check "row 1 dot: row 2 pads out two spaces at most" "2 1 0" "$(for c in 45.67 112.33 1234.56; do adam $c | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print length($1) + length($4) - 2 if /Effort ·( +)Max 20x( +)·( +)\$[0-9.]+( +)· Session/'; echo; done | tr '\n' ' ' | sed 's/ $//')"
+check "row 1 dot: row 2 pads out what is left" "2 1 0" "$(for c in 45.67 112.33 1234.56; do adam $c | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print length($1) + length($4) - 2 if /Effort ·( +)Max 20x( +)·( +)\$[0-9.]+( +)· Session/'; echo; done | tr '\n' ' ' | sed 's/ $//')"
 # the plan and cost sit centred together in that room, their dot a space either side (Adam: "the dot
 # between Max 20x and the cost to always be centered and max x 20 and the cost centered in the leftover
 # white space"): the spaces before Max 20x, around its dot, and after the cost. An odd one goes after.
 check "plan and cost: centred as one"  "2-1-1-2 1-1-1-2 1-1-1-1" "$(for c in 45.67 112.33 1234.56; do adam $c | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print join("-", map { length } $1, $2, $3, $4) if /Effort ·( +)Max 20x( +)·( +)\$[0-9.]+( +)· Session/'; echo; done | tr '\n' ' ' | sed 's/ $//')"
 check "row 1 dot: the rows stay a table" "aligned aligned aligned" "$(for c in 45.67 112.33 1234.56; do adam $c | run | align; done | tr '\n' ' ' | sed 's/ $//')"
-check "row 1 dot: under \$10 the phrase fills instead" "off by -3 aligned" "$(adam 5.43 | over) $(adam 5.43 | run | align)"
+check "row 1 dot: under \$10 too, three spaces to pad" "over aligned 2-1-1-3" "$(adam 5.43 | over) $(adam 5.43 | run | align) $(adam 5.43 | run | sed $'s/\e\\[[0-9;]*m//g' | sed -n 2p | perl -ne 'print join("-", map { length } $1, $2, $3, $4) if /Effort ·( +)Max 20x( +)·( +)\$[0-9.]+( +)· Session/')"
+# a fresh session (no cost yet) lines up with the dot after the model, row 1 padding around its status
+check "row 1 dot: row 1 pads around the status, centred" "over ·  Claude operational  ·" "$(adam 0 | run | python3 -c '
+import sys, re
+r = [re.sub(r"\x1b\[[0-9;]*m", "", l.rstrip("\n")) for l in sys.stdin][:2]
+m = r[0].index("·"); d = r[1].index("·")
+print("over" if m == d else "off by %d" % (m - d), re.search(r"· +Claude operational +·", r[0]).group(0))')"
 seed corrupt
 check "row 1 dot: kept while checking too" "yes" "$(full | run | sed -n 1p | plain | grep -qE '(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · checking Claude status… · Context ' && echo yes || echo no)"
 seed ok
@@ -441,26 +447,29 @@ jq -n --argjson at "$now" '{at: $at, tone: "ok", text: ""}' > "$spc/status.json"
 # spent SESSION COST [NOW]: both rows as the line draws them for that session, colour codes kept
 spent() { jq -nc --arg s "$1" --argjson c "$2" '{session_id: $s, model: {display_name: "Opus 5.5"}, effort: {level: "max"}, context_window: {context_window_size: 1000000}, cost: {total_cost_usd: $c}}' | HOME="$sp" PATH="$T/datebin:$PATH" FAKE_NOW="${3:-$now}" bash "$new" | unbox; }
 cents() { jq --arg m "${2:-$ym}" '.months[$m] // 0 | . * 100 | round' "$sd/$1.json"; }
-mon=$(LC_ALL=C epochfmt "$now" %b); ym=$(epochfmt "$now" %Y-%m)
+ym=$(epochfmt "$now" %Y-%m)
+monthly() { sed -n 2p | plain | grep -o '\$[0-9,]*$'; }   # the month: whole dollars, last on the head
 check "spend: a session first seen with money on it counts none of it" "Opus 5.5 (1M) · Max Effort · Max 20x · \$97.90 {}" "$(spent aaaa-1 97.90 | sed -n 2p | plain) $(jq -c .months "$sd/aaaa-1.json")"
-check "spend: then only what it adds"        "Opus 5.5 (1M) · Max Effort · Max 20x · \$123.45 · \$26 $mon 2555" "$(spent aaaa-1 123.45 | sed -n 2p | plain) $(cents aaaa-1)"
+check "spend: then only what it adds"        "Opus 5.5 (1M) · Max Effort · Max 20x · \$123.45 · \$26 2555" "$(spent aaaa-1 123.45 | sed -n 2p | plain) $(cents aaaa-1)"
 check "spend: the same total again adds nothing" "2555" "$(spent aaaa-1 123.45 >/dev/null; cents aaaa-1)"
-check "spend: sessions side by side add up"  "\$36 $mon" "$(spent bbbb-2 0 >/dev/null; spent bbbb-2 10 | sed -n 2p | plain | grep -o "\\\$[0-9,]* $mon")"
-check "spend: a total that starts over counts from zero" "\$37 $mon 2655" "$(spent aaaa-1 1 | sed -n 2p | plain | grep -o "\\\$[0-9,]* $mon") $(cents aaaa-1)"
-check "spend: in the plan's rose"            "yes" "$(spent aaaa-1 1 | sed -n 2p | has $'\e\\[38;2;232;142;144m\\$37 '"$mon")"
+check "spend: sessions side by side add up"  "\$36" "$(spent bbbb-2 0 >/dev/null; spent bbbb-2 10 | monthly)"
+check "spend: a total that starts over counts from zero" "\$37 2655" "$(spent aaaa-1 1 | monthly) $(cents aaaa-1)"
+check "spend: in the plan's rose, no month name" "yes" "$(spent aaaa-1 1 | sed -n 2p | has $'\e\\[38;2;232;142;144m\\$37\e\\[0m')"
 check "spend: no session id, no file"        "2" "$(echo '{"cost":{"total_cost_usd":5}}' | HOME="$sp" PATH="$T/datebin:$PATH" FAKE_NOW="$now" bash "$new" >/dev/null; ls "$sd" | wc -l | tr -d ' ')"
 printf 'not json' > "$sd/eeee-5.json"
 check "spend: a broken file starts over, the line still draws" "{\"last\":5,\"months\":{}} yes" "$(if spent eeee-5 5 | sed -n 2p | plain | grep -q 'Max 20x'; then d=yes; else d=no; fi; echo "$(jq -c '{last, months}' "$sd/eeee-5.json") $d")"
-check "spend: thousands get commas"          "\$1,237 $mon" "$(spent ffff-6 0 >/dev/null; spent ffff-6 1200 | sed -n 2p | plain | grep -o "\\\$[0-9,]* $mon")"
-# with the month on it, row 2 outgrows row 1: row 1 pads (two at most), its status centred, and its dot
-# still stands over the dot before the session cost
-check "spend: row 1 pads around the status, lined up" "over ·  Claude operational  ·" "$(spent gggg-7 123.45 | python3 -c '
+check "spend: thousands get commas"          "\$1,237" "$(spent ffff-6 0 >/dev/null; spent ffff-6 1200 | monthly)"
+# row 2 can outgrow row 1 too: then row 1 pads (three at most) around its status, centred, and a
+# problem mark keeps its place over the dot, the padding after it
+jq -n --argjson at "$now" '{at: $at, tone: "warn", text: "Claude Code degraded"}' > "$spc/status.json"
+check "spend: row 1 pads after the mark, which stays lined up" "over ✕  Claude Outage  ·" "$(spent gggg-7 45.67 | python3 -c '
 import sys, re
 r = [re.sub(r"\x1b\[[0-9;]*m", "", l.rstrip("\n")) for l in sys.stdin][:2]
-m = r[0].index("·"); d = r[1].rfind("·", 0, r[1].find("$123.45"))
-print("over" if m == d else "off by %d" % (m - d), re.search(r"· +Claude operational +·", r[0]).group(0))')"
+m = r[0].index("✕"); d = r[1].rfind("·", 0, r[1].find("$45.67"))
+print("over" if m == d else "off by %d" % (m - d), re.search(r"✕ +Claude Outage +·", r[0]).group(0))')"
+jq -n --argjson at "$now" '{at: $at, tone: "ok", text: ""}' > "$spc/status.json"
 later=$((now + 40 * 86400)); touch -t "$(epochfmt "$later" %Y%m%d%H%M.%S)" "$spc/status-checked"   # (no status check that far ahead)
-check "spend: a new month starts from zero"  "\$2 $(LC_ALL=C epochfmt "$later" %b)" "$(spent aaaa-1 3 "$later" | sed -n 2p | plain | grep -o '\$[0-9,]* [A-Z][a-z][a-z]$')"
+check "spend: a new month starts from zero"  "\$2" "$(spent aaaa-1 3 "$later" | monthly)"
 check "spend: --spend lists the months and the lifetime" "yes 3" "$(o=$(HOME="$sp" bash "$new" --spend); printf '%s %s' "$(echo "$o" | grep -q '^  Lifetime  \$1,238\.55$' && echo yes || echo no)" "$(echo "$o" | grep -c '^  ')")"
 check "spend: --spend before any spend"      "yes" "$(HOME="$T/home-nothing" bash "$new" --spend | grep -q '^Nothing counted yet' && echo yes || echo no)"
 

@@ -74,7 +74,7 @@ the rows exactly. A short word in capitals looks best. Options go together, as i
 
 ### Running total
 
-The dollar figure after the session's own (`$1,234 Sep`) is the month so far: what all your
+The second dollar figure, in whole dollars after the session's own (`$1,234`), is the month so far: what all your
 sessions would have cost at API prices. Bangarang keeps the total itself, so it counts from the day
 you install it. Each session adds only what it spends while the status line runs, so refreshing or
 resuming never counts the same dollars twice. Only the month shows on the line; for every month and
