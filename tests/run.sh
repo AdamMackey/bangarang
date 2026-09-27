@@ -298,10 +298,10 @@ check "phrase: 23"                 "»» B A N G A R A N G ««"          "$(ph 
 check "phrase: 25, three chevrons" "»»» B A N G A R A N G «««"        "$(ph 25)"
 check "phrase: 26"                 "»»» B A N G A R A N G! «««"       "$(ph 26)"
 check "phrase: 27, four chevrons"  "»»»» B A N G A R A N G ««««"      "$(ph 27)"
-check "phrase: 29, hearts outside" "♥ »»» B A N G A R A N G ««« ♥"    "$(ph 29)"
-check "phrase: 31"                 "♥ »»»» B A N G A R A N G «««« ♥"  "$(ph 31)"
-check "phrase: 33, two hearts"     "♥ ♥ »»» B A N G A R A N G ««« ♥ ♥" "$(ph 33)"
-check "phrase: 34"                 "♥ ♥ »»» B A N G A R A N G! ««« ♥ ♥" "$(ph 34)"
+check "phrase: 29, more chevrons"  "»»»»» B A N G A R A N G «««««"    "$(ph 29)"
+check "phrase: 31"                 "»»»»»» B A N G A R A N G ««««««"  "$(ph 31)"
+check "phrase: 33, no hearts"      "»»»»»»» B A N G A R A N G «««««««" "$(ph 33)"
+check "phrase: 34"                 "»»»»»»» B A N G A R A N G! «««««««" "$(ph 34)"
 check "phrase: never under 9, row 2 makes room" "BANGARANG BANGARANG" "$(ph 8) $(ph 3)"
 check "phrase: fills its room at every width" "yes" "$(for r in $(seq 9 40); do ph $r | python3 -c "import sys; print('yes' if len(sys.stdin.read().rstrip('\\n')) == $r else 'no at $r')"; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
 # your own word: --phrase WORD, --phrase=WORD or BANGARANG_PHRASE=WORD
@@ -312,8 +312,8 @@ check "phrase: so does BANGARANG_PHRASE"        "yes" "$(full | HOME="$dh" PATH=
 check "phrase: your word fills its room at every width" "yes" "$(for r in $(seq 6 40); do phw WOOHOO $r | python3 -c "import sys; print('yes' if len(sys.stdin.read().rstrip('\\n')) == $r else 'no at $r')"; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
 check "phrase: your word never leaves either"   "WOOHOO" "$(phw WOOHOO 2)"
 check "phrase: an empty --phrase keeps BANGARANG" "yes" "$(phw '' 17 | grep -q 'B A N G A R A N G' && echo yes || echo no)"
-check "phrase: gradient starts clay, not bold" "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'^\e\\[38;2;215;135;95m♥')"
-check "phrase: gradient ends blue, not bold" "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[38;2;89;136;213m♥\e\\[0m\e\\[38;2;175;135;255m · ')"
+check "phrase: gradient starts clay, not bold" "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'^\e\\[38;2;215;135;95m»')"
+check "phrase: gradient ends blue, not bold" "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[38;2;89;136;213m«\e\\[0m\e\\[38;2;175;135;255m · ')"
 check "phrase: the status follows it"  "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · Claude operational · Context ' && echo yes || echo no)"
 # The dot (or problem mark) before the status stands right over a dot in row 2 (Adam: "line up
 # with the Max x20 dot", then "replace the check with a dot"): for

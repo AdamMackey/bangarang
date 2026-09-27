@@ -454,9 +454,9 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   # the line went to one weight (Adam: "try this on BANGARANG too"). Built to
   # fill its room exactly, so the spacing around it stays even: letter-spaced
   # once there is room for that, an exclamation mark for an odd leftover, then
-  # chevrons, up to four a side, then hearts outside them, spaced like the letters
-  # ("♥ ♥ »»» B A N G A R A N G ««« ♥ ♥"), as far as the room goes. Three
-  # chevrons or four, whichever makes the hearts fit.
+  # chevrons, as many a side as the room takes ("»»»»»» B A N G A R A N G
+  # ««««««"). Hearts used to go outside four chevrons; Adam voted to "remove
+  # them and put arrows instead of them".
   def phrase($w):
     ($word | length) as $n
     | ($word | explode | map([.] | implode) | join(" ")) as $spaced
@@ -468,9 +468,7 @@ exec jq -r --argjson now "$now" --arg word "$word" \
       | ($even / 2) as $side
       | if $even == 0 then $c
         elif $even == 2 then $c + "!!"
-        else (if $side <= 4 then $side - 1 else 3 + ($side - 4) % 2 end) as $k
-          | (($side - 1 - $k) / 2) as $h
-          | rep("♥ "; $h) + rep("»"; $k) + " " + $c + " " + rep("«"; $k) + rep(" ♥"; $h)
+        else rep("»"; $side - 1) + " " + $c + " " + rep("«"; $side - 1)
         end
     end;
   def shade($t):
