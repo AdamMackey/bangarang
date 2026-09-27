@@ -21,11 +21,15 @@
 # 0.1 steps, resets_at in epoch seconds}; a window drops out once it resets.
 
 # Runs on macOS and Linux. The caches live in ~/Library/Caches on macOS and in
-# $XDG_CACHE_HOME (~/.cache) elsewhere.
+# $XDG_CACHE_HOME (~/.cache) elsewhere. The running spend totals are kept, not
+# cached (the system may clear caches): in ~/Library/Application Support on
+# macOS and in $XDG_DATA_HOME (~/.local/share) elsewhere.
 if [ "$(uname)" = Darwin ]; then
   cache="$HOME/Library/Caches/claude-statusline"
+  spend="$HOME/Library/Application Support/Bangarang/spend"
 else
   cache="${XDG_CACHE_HOME:-$HOME/.cache}/claude-statusline"
+  spend="${XDG_DATA_HOME:-$HOME/.local/share}/bangarang/spend"
 fi
 # A file's modification time in epoch seconds: GNU stat takes -c, BSD stat -f.
 if stat -c %Y / >/dev/null 2>&1; then mtime() { stat -c %Y "$1"; }; else mtime() { stat -f %m "$1"; }; fi
@@ -111,6 +115,25 @@ if [ "$1" = "--fetch-usage" ]; then
   exit 0
 fi
 
+# --spend prints the running totals kept below: each month on record and the
+# lifetime sum, which the line itself never shows (Adam: "a total spend
+# lifetime as a hidden but callable amount").
+if [ "$1" = "--spend" ]; then
+  find "$spend" -name '*.json' -exec cat {} + 2>/dev/null | jq -nRr '
+    def commas: tostring | if length > 3 then (.[:-3] | commas) + "," + .[-3:] else . end;
+    def usd: (. * 100 | round) as $c | "$\($c / 100 | floor | commas).\($c % 100 | tostring | if length < 2 then "0" + . else . end)";
+    def month_name: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][(.[5:7] | tonumber) - 1] + " " + .[:4];
+    [inputs | try fromjson catch empty | objects] as $s
+    | [$s[] | .months // {} | to_entries[]] as $e
+    | if $e == [] then "Nothing counted yet: the running total starts with the next session cost the status line sees."
+      else ([$s[].first | numbers] | min | strflocaltime("%Y-%m-%d")) as $since
+        | "What Claude Code would have cost at API prices, counted since \($since):",
+          ($e | group_by(.key)[] | "  \(.[0].key | month_name)  \(map(.value) | add | usd)"),
+          "  Lifetime  \($e | map(.value) | add | usd)"
+      end'
+  exit 0
+fi
+
 now=$(date +%s)
 
 # The per-model weekly limits (Fable and so on) cost a headless claude run every
@@ -164,7 +187,38 @@ if [ "$HOME/.claude.json" -nt "$cache/plan" ]; then
   fi
 fi
 
+# The running total of what sessions have cost (Claude Code's own estimate at
+# API prices, cost.total_cost_usd), by month (Adam: "a running total"). One
+# small file per session, so sessions running side by side never write the
+# same file: the total it showed last and what it has added to each month.
+# Each run adds only the growth since the last look, so a session's dollars
+# count once however often the line refreshes. A session first seen with money
+# already on it (resumed, or running before this was installed) starts from
+# that figure rather than counting it again; a total that drops (Claude Code
+# started its count over) counts from zero. The months are local ones.
+input=$(cat)
+{ read -r sid; read -r total; read -r month; } < <(jq -r --argjson now "$now" '
+    (.session_id // "" | tostring | gsub("[^A-Za-z0-9-]"; "")),
+    (.cost.total_cost_usd // 0 | if type == "number" then . else 0 end),
+    ($now | strflocaltime("%Y-%m"))' <<<"$input" 2>/dev/null)
+if [ -n "$sid" ] && mkdir -p "$spend" 2>/dev/null; then
+  if new=$(jq -nc --arg old "$(cat "$spend/$sid.json" 2>/dev/null)" --argjson t "${total:-0}" \
+             --arg m "$month" --argjson now "$now" '
+        ($old | try fromjson catch null) as $l
+        | if ($l | type) != "object" or ($l.last | type) != "number" then {first: $now, last: $t, months: {}}
+          elif $t == $l.last then empty
+          else (if $t > $l.last then $t - $l.last else $t end) as $d
+            | $l | .last = $t | .months[$m] = ((.months[$m] // 0) + $d) end' 2>/dev/null) && [ -n "$new" ]; then
+    printf '%s\n' "$new" > "$spend/$sid.json.$$" && mv -f "$spend/$sid.json.$$" "$spend/$sid.json"
+  fi
+fi
+# The month so far: only files touched in the last 32 days can hold any of it.
+month_spend=$(find "$spend" -name '*.json' -mtime -32 -exec cat {} + 2>/dev/null |
+  jq -nR --arg m "$month" '[inputs | try fromjson catch empty | objects | .months[$m] // 0 | numbers] | add // 0' 2>/dev/null)
+case "$month_spend" in ''|*[!0-9.e+-]*) month_spend=0 ;; esac
+
 exec jq -r --argjson now "$now" --arg word "$word" \
+  --argjson month_spend "$month_spend" --arg month "$month" \
   --arg plan "$(cat "$cache/plan" 2>/dev/null)" \
   --arg usage "$([ "$usage_on" = 1 ] && cat "$cache/usage.json" 2>/dev/null)" \
   --arg usage_failed "$([ "$usage_on" = 1 ] && [ -e "$cache/usage-failed" ] && echo 1)" \
@@ -179,6 +233,8 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   def hue: "38;2;175;135;255";
   def size: if . >= 1000000 then "\(. / 1000000 | floor)M" elif . >= 1000 then "\(. / 1000 | floor)k" else tostring end;
   def dollars: (. * 100 | round) as $c | "$\($c / 100 | floor).\($c % 100 | tostring | if length < 2 then "0" + . else . end)";
+  def commas: tostring | if length > 3 then (.[:-3] | commas) + "," + .[-3:] else . end;
+  def month_name: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][(.[5:7] | tonumber) - 1];
   # Every piece has a colour: Claude Code draws uncoloured text in a faint grey
   # (measured #565656 on screen), while colours show at full strength. All are
   # exact 24-bit values for this dark terminal, which Claude Code keeps as rgb.
@@ -374,13 +430,17 @@ exec jq -r --argjson now "$now" --arg word "$word" \
       else empty end;
 
   # Row 2 as table cells: the model, effort and fast mode, then the plan and
-  # the session cost, then the limits. The plan and cost sit centred together
-  # in any room the head has left (see render_cell).
+  # the session cost and the month so far, then the limits. The pieces after
+  # the dot row 1 lines up with sit centred together in any room the head has
+  # left (see render_cell).
   def cells_plan($st):
     # Pace counts early use as a full half hour of a 5-hour window, a full day of a week.
     [{label: "", bar: "", centre_rest: true, tail: ([model_pieces,
                                   (if $plan != "" then tint(c_plan; $plan) else empty end),
-                                  (if (.cost.total_cost_usd // 0) > 0 then tint(c_cost; .cost.total_cost_usd | dollars) else empty end)]
+                                  (if (.cost.total_cost_usd // 0) > 0 then tint(c_cost; .cost.total_cost_usd | dollars) else empty end),
+                                  # The month so far, from the running total, in whole
+                                  # dollars (Adam: "show the monthly spend est in the status line").
+                                  (if $month_spend >= 0.5 then tint(c_cost; "$\($month_spend | round | commas) \($month | month_name)") else empty end)]
                                  | join(dot))},
        # "Session", as claude.ai names the 5-hour limit ("Current session").
        # Every bar label starts with a capital, like Fable (Adam asked).
@@ -465,9 +525,14 @@ exec jq -r --argjson now "$now" --arg word "$word" \
        | (if $d.last and ($d.tw - $t) <= 6 then rep(" "; $d.tw - $t) else "" end) as $lead
        | .label + rep(" "; $d.lw - (.label | visible)) + " " + .bar + " " + $lead + .tail
      elif .flex == true then
+       # The phrase takes its reach when there is one (row 1 then pads around
+       # the status, centred, an odd space after), else all the room.
        flex_sep as $sep
-       | phrase(if .tail == "" then $d.w else $d.w - (.tail | visible) - ($sep | visible) end) as $p
-       | if $p == null then .tail elif .tail == "" then ($p | rainbow) else ($p | rainbow) + $sep + .tail end
+       | (if .tail == "" then $d.w else $d.w - (.tail | visible) - ($sep | visible) end) as $room
+       | ($d.reach // $room) as $pw
+       | phrase($pw) as $p
+       | if $p == null then .tail elif .tail == "" then ($p | rainbow)
+         else ($p | rainbow) + $sep + rep(" "; (($room - $pw) / 2 | floor)) + .tail end
      elif .centre_rest == true then
        # What follows the dot that row 1 lines up with (the plan and the cost)
        # sits centred as one in the room left before the next dot, the dot
@@ -488,10 +553,10 @@ exec jq -r --argjson now "$now" --arg word "$word" \
     | ([$rows[] | length] | max) as $n
     # The phrase reaches to a dot in the head of row 2 when it can, so the dot
     # (or mark) before the status stands right over it (Adam: "line up with the
-    # Max x20 dot"; for him the dot before Max 20x, once a session passes $10):
-    # the dot that leaves row 2 the least to pad, two spaces at most. Row 1
-    # never pads, since the phrase can fill any room. $pw is the room the phrase
-    # keeps: that reach, else the shortest phrase, which fills what row 2 leaves.
+    # Max x20 dot"): the dot that leaves the least padding, two spaces at most,
+    # in row 2 (after the dot, centred there) or in row 1 (around the status,
+    # centred too); row 2 pads on a tie. $pw is the room the phrase keeps: that
+    # reach, else the shortest phrase, which then fills what row 2 leaves.
     | [$rows[] | .[0] | select(. != null and .flex != true) | .tail | bare] as $heads
     | ([$heads[] | length] | max // 0) as $hw
     | ([$rows[] | .[0] | select(. != null and .flex == true)] | first) as $f
@@ -499,8 +564,8 @@ exec jq -r --argjson now "$now" --arg word "$word" \
        else (($f | flex_sep | visible) + ($f.tail | visible)) as $rest
          | [$heads[] | explode | to_entries[] | select(.value == 183) | .key - 1
             | select(. >= ($word | length)) | {p: ., slack: (. + $rest - $hw)}
-            | select(.slack >= 0 and .slack <= 2)]
-         | min_by(.slack) | .p
+            | select(.slack >= -2 and .slack <= 2)]
+         | min_by([(if .slack < 0 then -.slack else .slack end), -.slack]) | .p
        end) as $reach
     | ($reach // ($word | length)) as $pw
     | [range(0; $n) as $i
@@ -548,4 +613,4 @@ exec jq -r --argjson now "$now" --arg word "$word" \
       | [$top] + map($c[0] + "│\u001b[0m " + . + rep(" "; $bw - 3 - visible) + $c[$bw - 1] + "│\u001b[0m") + [$bottom]
     else . end
   | join("\n")
-'
+' <<<"$input"

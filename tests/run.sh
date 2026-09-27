@@ -6,9 +6,11 @@ here=$(cd "$(dirname "$0")" && pwd)
 new=$(cd "$here/.." && pwd)/statusline.sh
 fx=$here/fixtures
 T=$(mktemp -d "${TMPDIR:-/tmp}/bangarang-tests.XXXX")
-unset XDG_CACHE_HOME
+unset XDG_CACHE_HOME XDG_DATA_HOME
 # where the script keeps its cache under a given HOME, as it decides it
 cachedir() { if [ "$(uname)" = Darwin ]; then echo "$1/Library/Caches/claude-statusline"; else echo "$1/.cache/claude-statusline"; fi; }
+# and where it keeps the running spend totals
+spenddir() { if [ "$(uname)" = Darwin ]; then echo "$1/Library/Application Support/Bangarang/spend"; else echo "$1/.local/share/bangarang/spend"; fi; }
 # an epoch time in a date format: BSD date takes -r, GNU date -d @
 epochfmt() { date -r "$1" "+$2" 2>/dev/null || date -d "@$1" "+$2"; }
 trap 'rm -rf "$T"' EXIT
@@ -430,6 +432,37 @@ check "and leaves no temp file"      "none" "$(ls "$dc" | grep -q 'plan\.' && ec
 rm -f "$dh/.claude.json" "$dc"/plan*
 check "no account file: no plan"     "Opus 5 (1M) · Max Effort · \$0.98" "$(head2 < "$here/base.json")"
 check "the email is never read out"  "0" "$(cat "$dc"/plan 2>/dev/null | grep -c example)"
+
+# ---- the running total: the month on row 2, the lifetime on call (Adam: "a running total", "keep a
+# total spend lifetime as a hidden but callable amount and show the monthy spend est in the status line")
+sp="$T/home-spend"; spc=$(cachedir "$sp"); sd=$(spenddir "$sp"); mkdir -p "$spc"
+printf '{"oauthAccount":{"organizationType":"claude_max","organizationRateLimitTier":"default_claude_max_20x"}}' > "$sp/.claude.json"
+jq -n --argjson at "$now" '{at: $at, tone: "ok", text: ""}' > "$spc/status.json"; touch "$spc/status-checked"
+# spent SESSION COST [NOW]: both rows as the line draws them for that session, colour codes kept
+spent() { jq -nc --arg s "$1" --argjson c "$2" '{session_id: $s, model: {display_name: "Opus 5.5"}, effort: {level: "max"}, context_window: {context_window_size: 1000000}, cost: {total_cost_usd: $c}}' | HOME="$sp" PATH="$T/datebin:$PATH" FAKE_NOW="${3:-$now}" bash "$new" | unbox; }
+cents() { jq --arg m "${2:-$ym}" '.months[$m] // 0 | . * 100 | round' "$sd/$1.json"; }
+mon=$(LC_ALL=C epochfmt "$now" %b); ym=$(epochfmt "$now" %Y-%m)
+check "spend: a session first seen with money on it counts none of it" "Opus 5.5 (1M) · Max Effort · Max 20x · \$97.90 {}" "$(spent aaaa-1 97.90 | sed -n 2p | plain) $(jq -c .months "$sd/aaaa-1.json")"
+check "spend: then only what it adds"        "Opus 5.5 (1M) · Max Effort · Max 20x · \$123.45 · \$26 $mon 2555" "$(spent aaaa-1 123.45 | sed -n 2p | plain) $(cents aaaa-1)"
+check "spend: the same total again adds nothing" "2555" "$(spent aaaa-1 123.45 >/dev/null; cents aaaa-1)"
+check "spend: sessions side by side add up"  "\$36 $mon" "$(spent bbbb-2 0 >/dev/null; spent bbbb-2 10 | sed -n 2p | plain | grep -o "\\\$[0-9,]* $mon")"
+check "spend: a total that starts over counts from zero" "\$37 $mon 2655" "$(spent aaaa-1 1 | sed -n 2p | plain | grep -o "\\\$[0-9,]* $mon") $(cents aaaa-1)"
+check "spend: in the plan's rose"            "yes" "$(spent aaaa-1 1 | sed -n 2p | has $'\e\\[38;2;232;142;144m\\$37 '"$mon")"
+check "spend: no session id, no file"        "2" "$(echo '{"cost":{"total_cost_usd":5}}' | HOME="$sp" PATH="$T/datebin:$PATH" FAKE_NOW="$now" bash "$new" >/dev/null; ls "$sd" | wc -l | tr -d ' ')"
+printf 'not json' > "$sd/eeee-5.json"
+check "spend: a broken file starts over, the line still draws" "{\"last\":5,\"months\":{}} yes" "$(if spent eeee-5 5 | sed -n 2p | plain | grep -q 'Max 20x'; then d=yes; else d=no; fi; echo "$(jq -c '{last, months}' "$sd/eeee-5.json") $d")"
+check "spend: thousands get commas"          "\$1,237 $mon" "$(spent ffff-6 0 >/dev/null; spent ffff-6 1200 | sed -n 2p | plain | grep -o "\\\$[0-9,]* $mon")"
+# with the month on it, row 2 outgrows row 1: row 1 pads (two at most), its status centred, and its dot
+# still stands over the dot before the session cost
+check "spend: row 1 pads around the status, lined up" "over ·  Claude operational  ·" "$(spent gggg-7 123.45 | python3 -c '
+import sys, re
+r = [re.sub(r"\x1b\[[0-9;]*m", "", l.rstrip("\n")) for l in sys.stdin][:2]
+m = r[0].index("·"); d = r[1].rfind("·", 0, r[1].find("$123.45"))
+print("over" if m == d else "off by %d" % (m - d), re.search(r"· +Claude operational +·", r[0]).group(0))')"
+later=$((now + 40 * 86400)); touch -t "$(epochfmt "$later" %Y%m%d%H%M.%S)" "$spc/status-checked"   # (no status check that far ahead)
+check "spend: a new month starts from zero"  "\$2 $(LC_ALL=C epochfmt "$later" %b)" "$(spent aaaa-1 3 "$later" | sed -n 2p | plain | grep -o '\$[0-9,]* [A-Z][a-z][a-z]$')"
+check "spend: --spend lists the months and the lifetime" "yes 3" "$(o=$(HOME="$sp" bash "$new" --spend); printf '%s %s' "$(echo "$o" | grep -q '^  Lifetime  \$1,238\.55$' && echo yes || echo no)" "$(echo "$o" | grep -c '^  ')")"
+check "spend: --spend before any spend"      "yes" "$(HOME="$T/home-nothing" bash "$new" --spend | grep -q '^Nothing counted yet' && echo yes || echo no)"
 
 # stays quick: 20 runs
 start=$(perl -MTime::HiRes=time -e 'printf "%.3f", time')

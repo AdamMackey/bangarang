@@ -13,8 +13,10 @@ A status line for Claude Code: everything worth watching in two rows, in a rainb
   by severity), then bars for the context window, the refill of your 5-hour limit (it fills up as
   the refill nears, with the time left beside it), and how long the prompt cache stays warm (`…`
   until a session's first reply, when Claude Code starts tracking it; `0%` once it has lapsed).
-- **Bottom row**: model, effort, fast mode, your plan and what the session has cost so far, then
-  bars for the 5-hour and weekly limits, plus per-model limits such as Fable's if you turn them on.
+- **Bottom row**: model, effort, fast mode, your plan, what the session would cost at API prices
+  (Claude Code's own estimate; a plan doesn't bill it) and the month's running total of the same,
+  then bars for the 5-hour and weekly limits, plus per-model limits such as Fable's if you turn
+  them on.
 - Limit numbers turn amber from 70% and red from 90%. The lighter cells on a limit bar show where
   your current pace lands by the time it resets.
 - The rows line up as a table whatever the model, effort or status: BANGARANG grows or shrinks to
@@ -70,6 +72,18 @@ or set `BANGARANG_PHRASE=LFG`. It gets the same letter-spacing, chevrons and rai
 the rows exactly. A short word in capitals looks best. Options go together, as in
 `~/.claude/statusline.sh --usage --phrase LFG`.
 
+### Running total
+
+The dollar figure after the session's own (`$1,234 Sep`) is the month so far: what all your
+sessions would have cost at API prices. Bangarang keeps the total itself, so it counts from the day
+you install it. Each session adds only what it spends while the status line runs, so refreshing or
+resuming never counts the same dollars twice. Only the month shows on the line; for every month and
+the lifetime total, run
+
+```bash
+~/.claude/statusline.sh --spend
+```
+
 ## What it reads and fetches
 
 - The session JSON Claude Code pipes to status lines: model, effort, fast mode, context window,
@@ -81,6 +95,9 @@ the rows exactly. A short word in capitals looks best. Options go together, as i
 - With `--usage`, Claude Code's `/usage` every 10 minutes.
 - Its caches live in `~/Library/Caches/claude-statusline` on macOS and `~/.cache/claude-statusline`
   (or `$XDG_CACHE_HOME`) on Linux.
+- The running total is one small file per session (the session's id, its last cost and what it
+  added each month) in `~/Library/Application Support/Bangarang/spend` on macOS and
+  `~/.local/share/bangarang/spend` (or `$XDG_DATA_HOME`) on Linux. Nothing leaves your machine.
 
 ## Tips
 
