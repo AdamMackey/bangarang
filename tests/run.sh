@@ -110,7 +110,7 @@ nobar() { sed -E 's/[██░]{10} //g'; }
 # Row 1 is the phrase and the Claude status, then Context, Refill and Cache; row 2 the model, effort,
 # fast mode, plan and cost, then Session, Weekly and Fable. Most checks read "status · limits"
 # together (the status from row 1, the limits from row 2), the way one row used to show them.
-nophrase1() { sed -E 's/^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)*( · | )?//'; }
+nophrase1() { sed -E 's/^(»+ ?)?(B A N G A R A N G|BANGARANG)( ?«+)?( · | )?//'; }
 # the phrase alone: everything before the status mark (or the dot)
 phrase1() { sed -E 's/ (· |✕ |\? ).*$//'; }   # (no ✕ inside [...]: that needs a UTF-8 locale)
 statuslimits() { local o st li; o=$(cat)
@@ -288,20 +288,20 @@ check "no limits: row 1 still whole"      "Claude operational · Context █░�
 acct claude_max '"default_claude_max_20x"'; aged 2>/dev/null
 ph() { jq -nc --arg n "$(printf "%$1s" | tr ' ' x)" '{model: {display_name: $n}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | plain | phrase1; }
 check "phrase: 9"                  "BANGARANG"                        "$(ph 9)"
-check "phrase: 10, an exclamation" "BANGARANG!"                       "$(ph 10)"
-check "phrase: 11"                 "BANGARANG!!"                      "$(ph 11)"
+check "phrase: 10, a snug chevron" "»BANGARANG"                       "$(ph 10)"
+check "phrase: 11"                 "»BANGARANG«"                      "$(ph 11)"
 check "phrase: 13, a chevron"      "» BANGARANG «"                    "$(ph 13)"
 check "phrase: 17, letter-spaced"  "B A N G A R A N G"                "$(ph 17)"
-check "phrase: 19"                 "B A N G A R A N G!!"              "$(ph 19)"
+check "phrase: 19"                 "»B A N G A R A N G«"              "$(ph 19)"
 check "phrase: 21"                 "» B A N G A R A N G «"            "$(ph 21)"
 check "phrase: 23"                 "»» B A N G A R A N G ««"          "$(ph 23)"
 check "phrase: 25, three chevrons" "»»» B A N G A R A N G «««"        "$(ph 25)"
-check "phrase: 26"                 "»»» B A N G A R A N G! «««"       "$(ph 26)"
+check "phrase: 26, no exclamation" "»»»» B A N G A R A N G «««"       "$(ph 26)"
 check "phrase: 27, four chevrons"  "»»»» B A N G A R A N G ««««"      "$(ph 27)"
 check "phrase: 29, more chevrons"  "»»»»» B A N G A R A N G «««««"    "$(ph 29)"
 check "phrase: 31"                 "»»»»»» B A N G A R A N G ««««««"  "$(ph 31)"
 check "phrase: 33, no hearts"      "»»»»»»» B A N G A R A N G «««««««" "$(ph 33)"
-check "phrase: 34"                 "»»»»»»» B A N G A R A N G! «««««««" "$(ph 34)"
+check "phrase: 34"                 "»»»»»»»» B A N G A R A N G «««««««" "$(ph 34)"
 check "phrase: never under 9, row 2 makes room" "BANGARANG BANGARANG" "$(ph 8) $(ph 3)"
 check "phrase: fills its room at every width" "yes" "$(for r in $(seq 9 40); do ph $r | python3 -c "import sys; print('yes' if len(sys.stdin.read().rstrip('\\n')) == $r else 'no at $r')"; done | sort -u | tr '\n' ' ' | sed 's/ $//')"
 # your own word: --phrase WORD, --phrase=WORD or BANGARANG_PHRASE=WORD
@@ -314,7 +314,7 @@ check "phrase: your word never leaves either"   "WOOHOO" "$(phw WOOHOO 2)"
 check "phrase: an empty --phrase keeps BANGARANG" "yes" "$(phw '' 17 | grep -q 'B A N G A R A N G' && echo yes || echo no)"
 check "phrase: gradient starts clay, not bold" "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'^\e\\[38;2;215;135;95m»')"
 check "phrase: gradient ends blue, not bold" "yes" "$(jq -nc '{model: {display_name: "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"}, cost: {total_cost_usd: 1234.56}}' | run | sed -n 1p | has $'\e\\[38;2;89;136;213m«\e\\[0m\e\\[38;2;175;135;255m · ')"
-check "phrase: the status follows it"  "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · Claude operational · Context ' && echo yes || echo no)"
+check "phrase: the status follows it"  "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(»+ ?)?(B A N G A R A N G|BANGARANG)( ?«+)? · Claude operational · Context ' && echo yes || echo no)"
 # The dot (or problem mark) before the status stands right over a dot in row 2 (Adam: "line up
 # with the Max x20 dot", then "replace the check with a dot"): for
 # Opus 5.5 (1M) at max effort on Max 20x, the dot before the plan once a session passes $10, with
@@ -341,14 +341,14 @@ r = [re.sub(r"\x1b\[[0-9;]*m", "", l.rstrip("\n")) for l in sys.stdin][:2]
 m = r[0].index("·"); d = r[1].index("·")
 print("over" if m == d else "off by %d" % (m - d), re.search(r"· +Claude operational +·", r[0]).group(0))')"
 seed corrupt
-check "row 1 dot: kept while checking too" "yes" "$(full | run | sed -n 1p | plain | grep -qE '(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* · checking Claude status… · Context ' && echo yes || echo no)"
+check "row 1 dot: kept while checking too" "yes" "$(full | run | sed -n 1p | plain | grep -qE '(B A N G A R A N G|BANGARANG)( ?«+)? · checking Claude status… · Context ' && echo yes || echo no)"
 seed ok
 rm -f "$dh/.claude.json" "$dc"/plan*
 check "phrase: the plan and cost sit on row 2" "0 0" "$(full | run | sed -n 1p | plain | grep -c '\$0.98') $(acct claude_max '"default_claude_max_20x"'; full | run | sed -n 1p | plain | grep -c 'Max 20x')"
 rm -f "$dh/.claude.json" "$dc"/plan*
 seed "warn:Claude Code degraded"
 check "phrase: stays during an outage" "1" "$(full | run | sed -n 1p | plain | grep -c 'BANG\|B A N')"
-check "outage: BANGARANG, then the outage" "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(♥ )*(»+ )?(B A N G A R A N G|BANGARANG)!*( «+)?( ♥)* ✕ Claude Outage · Context ' && echo yes || echo no)"
+check "outage: BANGARANG, then the outage" "yes" "$(full | run | sed -n 1p | plain | grep -qE '^(»+ ?)?(B A N G A R A N G|BANGARANG)( ?«+)? ✕ Claude Outage · Context ' && echo yes || echo no)"
 check "outage: the rows stay lined up" "aligned" "$(full | run | align)"
 seed ok
 # the refill timer: the session window's time left

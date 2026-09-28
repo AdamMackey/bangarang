@@ -257,8 +257,9 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   # these comments: the whole jq program sits inside single quotes.
   def c_cost:   c_plan;
   def dot: tint(c_dot; " · ");
-  # Meter words (labels and numbers) are GIGA BLUE, the periwinkle of the "!"
-  # in BANGARANG!, and the bars GIGA PURPLE (Adam, 2026-09-25: "revert to GIGA
+  # Meter words (labels and numbers) are GIGA BLUE, the periwinkle the "!" of
+  # BANGARANG! wore while it had one (so "the "!" blue" below), and the bars
+  # GIGA PURPLE (Adam, 2026-09-25: "revert to GIGA
   # BLUE for the txt and percentages", "GIGA PURPLE on the progress bars").
   # The Fable meter too. The limits turn the Meterous amber from 70% and red
   # from 90%; context and cache never do.
@@ -458,22 +459,21 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   # purple and blue gradient (the palette of the whole line), not bold since
   # the line went to one weight (Adam: "try this on BANGARANG too"). Built to
   # fill its room exactly, so the spacing around it stays even: letter-spaced
-  # once there is room for that, an exclamation mark for an odd leftover, then
-  # chevrons, as many a side as the room takes ("»»»»»» B A N G A R A N G
-  # ««««««"). Hearts used to go outside four chevrons; Adam voted to "remove
-  # them and put arrows instead of them".
+  # once there is room for that, then chevrons, as many a side as the room
+  # takes ("»»»»»» B A N G A R A N G ««««««"), the odd one on the left, and
+  # snug against the word while there is room for three at most. Hearts used to
+  # go outside four chevrons (Adam voted to "remove them and put arrows
+  # instead"), and an exclamation mark took an odd leftover (he asked for it
+  # off too).
   def phrase($w):
     ($word | length) as $n
     | ($word | explode | map([.] | implode) | join(" ")) as $spaced
     | if $w < $n then null
     else (if $w >= ($spaced | length) then $spaced else $word end) as $core
       | ($w - ($core | length)) as $e
-      | (if $e % 2 == 1 then $core + "!" else $core end) as $c
-      | ($e - $e % 2) as $even
-      | ($even / 2) as $side
-      | if $even == 0 then $c
-        elif $even == 2 then $c + "!!"
-        else rep("»"; $side - 1) + " " + $c + " " + rep("«"; $side - 1)
+      | if $e == 0 then $core
+        elif $e < 4 then rep("»"; ($e + 1) / 2 | floor) + $core + rep("«"; $e / 2 | floor)
+        else rep("»"; ($e - 1) / 2 | floor) + " " + $core + " " + rep("«"; ($e - 2) / 2 | floor)
         end
     end;
   def shade($t):
