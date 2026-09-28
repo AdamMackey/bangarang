@@ -471,6 +471,8 @@ jq -n --argjson at "$now" '{at: $at, tone: "ok", text: ""}' > "$spc/status.json"
 later=$((now + 40 * 86400)); touch -t "$(epochfmt "$later" %Y%m%d%H%M.%S)" "$spc/status-checked"   # (no status check that far ahead)
 check "spend: a new month starts from zero"  "\$2" "$(spent aaaa-1 3 "$later" | monthly)"
 check "spend: --spend lists the months and the lifetime" "yes 3" "$(o=$(HOME="$sp" bash "$new" --spend); printf '%s %s' "$(echo "$o" | grep -q '^  Lifetime  \$1,238\.55$' && echo yes || echo no)" "$(echo "$o" | grep -c '^  ')")"
+check "spend: --no-monthly shows no month and keeps no file" "no no" "$(jq -nc '{session_id: "hhhh-8", cost: {total_cost_usd: 50}}' | HOME="$sp" PATH="$T/datebin:$PATH" FAKE_NOW="$later" bash "$new" --no-monthly | unbox | sed -n 2p | plain | grep -q '\$[0-9,]*$' && echo yes || echo no) $([ -e "$sd/hhhh-8.json" ] && echo yes || echo no)"
+check "spend: so does BANGARANG_MONTHLY=0"   "no no" "$(jq -nc '{session_id: "iiii-9", cost: {total_cost_usd: 50}}' | HOME="$sp" PATH="$T/datebin:$PATH" FAKE_NOW="$later" BANGARANG_MONTHLY=0 bash "$new" | unbox | sed -n 2p | plain | grep -q '\$[0-9,]*$' && echo yes || echo no) $([ -e "$sd/iiii-9.json" ] && echo yes || echo no)"
 check "spend: --spend before any spend"      "yes" "$(HOME="$T/home-nothing" bash "$new" --spend | grep -q '^Nothing counted yet' && echo yes || echo no)"
 
 # stays quick: 20 runs

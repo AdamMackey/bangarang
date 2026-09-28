@@ -84,6 +84,9 @@ the lifetime total, run
 ~/.claude/statusline.sh --spend
 ```
 
+It's on unless you add `--no-monthly` to the command (or set `BANGARANG_MONTHLY=0`), which takes the
+figure off the line and stops the per-session files.
+
 ## What it reads and fetches
 
 - The session JSON Claude Code pipes to status lines: model, effort, fast mode, context window,

@@ -141,18 +141,23 @@ now=$(date +%s)
 # command, or BANGARANG_USAGE=1 in its environment.
 # The word at the top left is BANGARANG unless --phrase WORD (or --phrase=WORD, or
 # BANGARANG_PHRASE=WORD) makes it yours.
+# The month's running total (below) is on unless --no-monthly (or
+# BANGARANG_MONTHLY=0) turns it off, which also stops the files it keeps.
 usage_on=0
+monthly_on=1
 word="${BANGARANG_PHRASE:-}"
 prev=""
 for a in "$@"; do
   case "$a" in
     --usage) usage_on=1 ;;
+    --no-monthly) monthly_on=0 ;;
     --phrase=*) word="${a#--phrase=}" ;;
   esac
   [ "$prev" = "--phrase" ] && word="$a"
   prev="$a"
 done
 [ "${BANGARANG_USAGE:-}" = 1 ] && usage_on=1
+[ "${BANGARANG_MONTHLY:-}" = 0 ] && monthly_on=0
 [ -n "$word" ] || word=BANGARANG
 
 # Look at status.claude.com at most every two minutes, in the background, so the
@@ -201,7 +206,7 @@ input=$(cat)
     (.session_id // "" | tostring | gsub("[^A-Za-z0-9-]"; "")),
     (.cost.total_cost_usd // 0 | if type == "number" then . else 0 end),
     ($now | strflocaltime("%Y-%m"))' <<<"$input" 2>/dev/null)
-if [ -n "$sid" ] && mkdir -p "$spend" 2>/dev/null; then
+if [ "$monthly_on" = 1 ] && [ -n "$sid" ] && mkdir -p "$spend" 2>/dev/null; then
   if new=$(jq -nc --arg old "$(cat "$spend/$sid.json" 2>/dev/null)" --argjson t "${total:-0}" \
              --arg m "$month" --argjson now "$now" '
         ($old | try fromjson catch null) as $l
@@ -213,7 +218,7 @@ if [ -n "$sid" ] && mkdir -p "$spend" 2>/dev/null; then
   fi
 fi
 # The month so far: only files touched in the last 32 days can hold any of it.
-month_spend=$(find "$spend" -name '*.json' -mtime -32 -exec cat {} + 2>/dev/null |
+month_spend=$([ "$monthly_on" = 1 ] && find "$spend" -name '*.json' -mtime -32 -exec cat {} + 2>/dev/null |
   jq -nR --arg m "$month" '[inputs | try fromjson catch empty | objects | .months[$m] // 0 | numbers] | add // 0' 2>/dev/null)
 case "$month_spend" in ''|*[!0-9.e+-]*) month_spend=0 ;; esac
 
