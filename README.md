@@ -142,6 +142,12 @@ tools/preview.sh      # renders tools/sample-payload.json to preview.png and pri
 Bangarang is free. If it saves you from a surprise limit or two, you can
 [buy me a coffee](https://buymeacoffee.com/adammackey).
 
+## More from MackEye Apps
+
+Bangarang is one of the small apps from [MackEye Apps](https://mackeye.app): Mac utilities like
+Desktop Please and Hold Please, and tools for Claude like Meterous and Pulseous. See them all at
+[mackeye.app](https://mackeye.app).
+
 ## License
 
 MIT. Not affiliated with Anthropic.
