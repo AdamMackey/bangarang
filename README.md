@@ -17,6 +17,10 @@ A status line for Claude Code: everything worth watching in two rows, in a rainb
   (Claude Code's own estimate; a plan doesn't bill it) and the month's running total of the same,
   then bars for the 5-hour and weekly limits, plus per-model limits such as Fable's if you turn
   them on.
+- **Remote Control**: while the session is connected to Remote Control (`/rc`, or `claude --rc`),
+  the top edge of the box reads `● Remote Control`. If the connection ends (a lapsed login, say), it
+  reads `○ Remote Control off` in amber until you reconnect. A session that never connected keeps a
+  plain box, and the rows never move either way.
 - Limit numbers turn amber from 70% and red from 90%. The lighter cells on a limit bar show where
   your current pace lands by the time it resets.
 - The rows line up as a table whatever the model, effort or status: BANGARANG grows or shrinks to
@@ -93,6 +97,9 @@ figure off the line and stops the per-session files.
   cost, rate limits and the prompt cache.
 - Your plan tier (`oauthAccount.organizationRateLimitTier`) from `~/.claude.json`, and nothing else
   from that file.
+- Whether the session is connected to Remote Control, from the small file Claude Code keeps for each
+  running session (`~/.claude/sessions/<pid>.json`, or under `$CLAUDE_CONFIG_DIR`). Only whether its
+  Remote Control id is set is read; the id itself is never shown or kept.
 - status.claude.com's public status, fetched with curl in the background at most every 2 minutes; a
   verdict counts for 20 minutes.
 - With `--usage`, Claude Code's `/usage` every 10 minutes.

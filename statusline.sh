@@ -9,6 +9,8 @@
 #      (Max 20x and so on) and what the session has cost; then bars for the
 #      5-hour and weekly limits, each with a pace forecast, and with --usage the
 #      per-model weekly limits (Fable) from a headless /usage.
+# While the session is connected to Remote Control (/rc), the top of the box
+# says so: "● Remote Control" (see rc_title).
 # Claude Code pipes session JSON to stdin after each turn, whenever the model,
 # effort or fast mode changes, and every "refreshInterval" seconds. Wired up by
 # "statusLine" in ~/.claude/settings.json. The rows are laid out as a table
@@ -222,8 +224,18 @@ month_spend=$([ "$monthly_on" = 1 ] && find "$spend" -name '*.json' -mtime -32 -
   jq -nR --arg m "$month" '[inputs | try fromjson catch empty | objects | .months[$m] // 0 | numbers] | add // 0' 2>/dev/null)
 case "$month_spend" in ''|*[!0-9.e+-]*) month_spend=0 ;; esac
 
+# Remote Control (/rc, or claude --rc): not in the status line JSON, but Claude
+# Code keeps a small file for each running session, sessions/<its pid>.json in
+# its config folder, and runs this script as its own child, so $PPID names it.
+# Its bridgeSessionId is set while the session is connected to Remote Control
+# and goes null once the connection ends (a lapsed login, say); a session that
+# never connected has none. Only whether it is set is read: "on", "off" or "".
+rc=$(jq -r 'if type == "object" and has("bridgeSessionId") then
+              (if (.bridgeSessionId | type) == "string" and (.bridgeSessionId | length) > 0 then "on" else "off" end)
+            else "" end' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sessions/$PPID.json" 2>/dev/null)
+
 exec jq -r --argjson now "$now" --arg word "$word" \
-  --argjson month_spend "$month_spend" \
+  --argjson month_spend "$month_spend" --arg rc "$rc" \
   --arg plan "$(cat "$cache/plan" 2>/dev/null)" \
   --arg usage "$([ "$usage_on" = 1 ] && cat "$cache/usage.json" 2>/dev/null)" \
   --arg usage_failed "$([ "$usage_on" = 1 ] && [ -e "$cache/usage-failed" ] && echo 1)" \
@@ -608,13 +620,33 @@ exec jq -r --argjson now "$now" --arg word "$word" \
   # rules vanished while the busy rows between them stayed), so an unchanging
   # box would never come back. The nudge is invisible and makes every refresh
   # repaint it.
+  # Remote Control (Adam: "an indicator for Bangarang that shows it is on
+  # Rc") is a title in the top rule, at its left so a narrow terminal never
+  # cuts it off, and the rows stay just as they are: a filled dot and "Remote
+  # Control" in the all-clear sage while the session is connected, a hollow
+  # dot and "Remote Control off" in the Pulseous amber once the connection has
+  # ended (a lapsed login, say), and no title for a session that never
+  # connected. The colour is kept as numbers so the title takes the nudge too.
+  def rc_title:
+    if $rc == "on" then {text: "● Remote Control", rgb: [135, 169, 141]}
+    elif $rc == "off" then {text: "○ Remote Control off", rgb: [251, 178, 64]}
+    else null end;
   service as $st
   | [cells_session($st), cells_plan($st)] | layout | map(select(. != ""))
   | if length > 0 then
       ((map(visible) | max) + 4) as $bw
       | (($now / 60 | floor) % 2) as $nudge
       | [range(0; $bw) as $i | rainbow_rgb($i / ($bw - 1); $nudge)] as $c
-      | ([range(0; $bw) as $i | $c[$i] + (if $i == 0 then "╭" elif $i == $bw - 1 then "╮" else "─" end)] | join("") + "\u001b[0m") as $top
+      # The title starts in the third column, a space either side of it.
+      | (rc_title | if . != null and (.text | length) + 6 <= $bw then . else null end) as $rt
+      | (if $rt == null then "" else " " + $rt.text + " " end) as $tt
+      | ([range(0; $bw) as $i
+          | if $i == 0 then $c[0] + "╭"
+            elif $i == $bw - 1 then $c[$i] + "╮"
+            elif $i >= 2 and $i < 2 + ($tt | length) then
+              (if $i == 2 then "\u001b[38;2;\($rt.rgb[0]);\($rt.rgb[1]);\([$rt.rgb[2] + $nudge, 255] | min)m" else "" end)
+              + $tt[$i - 2:$i - 1]
+            else $c[$i] + "─" end] | join("") + "\u001b[0m") as $top
       | ([range(0; $bw) as $i | $c[$i] + (if $i == 0 then "╰" elif $i == $bw - 1 then "╯" else "─" end)] | join("") + "\u001b[0m") as $bottom
       | [$top] + map($c[0] + "│\u001b[0m " + . + rep(" "; $bw - 3 - visible) + $c[$bw - 1] + "│\u001b[0m") + [$bottom]
     else . end

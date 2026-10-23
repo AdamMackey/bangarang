@@ -410,6 +410,41 @@ check "box: still square when the rows are unaligned" "yes unaligned" "$(echo '{
 check "box: BANGARANG shows when unaligned too" "» B A N G A R A N G «" "$(echo '{"model":{"id":"x"}}' | run | sed -n 1p | plain | phrase1)"
 seed ok
 check "box: two rows in, four lines out, whatever the payload" "4" "$(echo '{}' | runfull | awk 'END {print NR}')"
+
+# Remote Control: a title in the top rule while the session is connected (Adam: "an indicator for
+# Bangarang that shows it is on Rc"). Claude Code runs the line as its own child and keeps a file for
+# each session named by its pid, so a stand-in parent writes one under its own pid first. asrc takes
+# the bridgeSessionId to write ("-" = a file without one, "x" = no file at all, "!" = a broken file).
+asrc() { local v=$1; shift; HOME="$dh" PATH="$T/datebin:$PATH" FAKE_NOW="${RC_NOW:-$now}" RCV="$v" bash -c '
+  d="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/sessions"; mkdir -p "$d"
+  case "$RCV" in
+    x) ;;
+    -) printf "{\"pid\":%s,\"status\":\"idle\"}" $$ > "$d/$$.json" ;;
+    !) printf "{\"pid\": 12" > "$d/$$.json" ;;
+    *) printf "{\"pid\":%s,\"bridgeSessionId\":%s}" $$ "$RCV" > "$d/$$.json" ;;
+  esac
+  bash "$0" "$@"; s=$?; rm -f "$d/$$.json"; exit $s' "$new" --usage "$@"; }
+rctop() { asrc "$@" | sed -n 1p | plain; }
+rccode() { grep -oE $'\e\\[38;2;[0-9;]*m (●|○)' | tr -d '\033'; }   # (no ● inside [...]: that needs a UTF-8 locale)
+rcblue() { rccode | sed -E 's/^.*;([0-9]+)m.*$/\1/'; }
+check "rc: connected, the top rule says so"  "yes" "$(full | rctop '"session_test"' | grep -qE '^╭─ ● Remote Control ─+╮$' && echo yes || echo no)"
+check "rc: the connection ended, off"        "yes" "$(full | rctop null | grep -qE '^╭─ ○ Remote Control off ─+╮$' && echo yes || echo no)"
+check "rc: an empty id is off too"           "yes" "$(full | rctop '""' | grep -qE '^╭─ ○ Remote Control off ─+╮$' && echo yes || echo no)"
+check "rc: never connected, a plain rule"    "yes" "$(full | rctop - | grep -qE '^╭─+╮$' && echo yes || echo no)"
+check "rc: no session file, a plain rule"    "yes" "$(full | rctop x | grep -qE '^╭─+╮$' && echo yes || echo no)"
+check "rc: a broken session file, a plain rule, the rows still draw" "yes 4" "$(o=$(full | asrc '!'); echo "$(echo "$o" | sed -n 1p | plain | grep -qE '^╭─+╮$' && echo yes || echo no) $(echo "$o" | awk 'END {print NR}')")"
+check "rc: the id itself never shows"        "0" "$(full | asrc '"session_test"' | grep -c session_test)"
+check "rc: the rows below are untouched"     "same" "$([ "$(full | asrc '"session_test"' | sed 1d)" = "$(full | asrc - | sed 1d)" ] && echo same || echo differ)"
+check "rc: the box stays square"             "yes" "$(full | asrc '"session_test"' | widths | awk '{print ($1 == $2 && $2 == $3 && $3 == $4) ? "yes" : "no: " $0}')"
+check "rc: on in the all-clear sage"         "[38;2;135;169;$((141 + nudge))m ●" "$(full | asrc '"session_test"' | sed -n 1p | rccode)"
+check "rc: off in the Pulseous amber"        "[38;2;251;178;$((64 + nudge))m ○" "$(full | asrc null | sed -n 1p | rccode)"
+check "rc: the title steps with the minute, like the rule" "1" "$(a=$(full | asrc '"s"' | sed -n 1p | rcblue); b=$(full | RC_NOW=$((now + 60)) asrc '"s"' | sed -n 1p | rcblue); d=$((a - b)); echo ${d#-})"
+check "rc: still one colour reset, at the end of the rule" "1" "$(full | asrc '"session_test"' | sed -n 1p | grep -o $'\e\\[0m' | wc -l | tr -d ' ')"
+check "rc: the bottom rule stays plain"      "yes" "$(full | asrc '"session_test"' | sed -n '$p' | plain | grep -qE '^╰─+╯$' && echo yes || echo no)"
+check "rc: read from CLAUDE_CONFIG_DIR when Claude Code has one" "yes" "$(full | CLAUDE_CONFIG_DIR="$T/ccd" rctop '"session_test"' | grep -q '● Remote Control' && echo yes || echo no)"
+mkdir -p "$dh/.claude/sessions"; printf '{"pid":1,"bridgeSessionId":"session_other"}' > "$dh/.claude/sessions/1.json"
+check "rc: another session connected does not count" "yes" "$(full | rctop x | grep -qE '^╭─+╮$' && echo yes || echo no)"
+rm -f "$dh/.claude/sessions/1.json"
 seedu none
 
 # row 1 for a handful of payloads, from full to bare
